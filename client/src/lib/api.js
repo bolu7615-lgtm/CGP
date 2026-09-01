@@ -1,11 +1,11 @@
-// src/lib/api.js
 import axios from 'axios'
 
 const api = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL || '/api',
   headers: {
     'Content-Type': 'application/json',
   },
+  withCredentials: true,
 })
 
 // Request interceptor - add auth token
@@ -33,7 +33,7 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
-      // Only skip refresh on the refresh-token endpoint itself (to prevent infinite loops)
+      // Only skip refresh on the refresh-token endpoint itself
       if (originalRequest.url === '/auth/refresh-token') {
         return Promise.reject(error)
       }
@@ -49,7 +49,6 @@ api.interceptors.response.use(
       }
 
       try {
-        // Use api.post (not axios.post) so baseURL is applied
         const res = await api.post('/auth/refresh-token', { refreshToken })
         const { accessToken } = res.data.data
 
