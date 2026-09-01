@@ -23,9 +23,14 @@ const app = express();
 // Security middleware
 app.use(helmet());
 
-// CORS
+// CORS - allow localhost dev and production frontend
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: [
+    'http://localhost:5173',
+    'http://localhost:3000',
+    'https://cgp-eta.vercel.app',
+    process.env.FRONTEND_URL,
+  ].filter(Boolean),
   credentials: true,
 }));
 
