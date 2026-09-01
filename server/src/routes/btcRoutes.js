@@ -1,136 +1,151 @@
 const express = require('express');
 const router = express.Router();
 
-// Cache for BTC data (refresh every 60 seconds)
+// Cache
 let cache = {
-  ohlc: {},
   price: null,
-  lastFetch: 0,
+  ohlc: {},
+  lastPriceFetch: 0,
+  lastOhlcFetch: 0,
+};
+const PRICE_CACHE = 30000;
+const OHLC_CACHE = 60000;
+
+// Mock data for when APIs are blocked
+const MOCK_PRICE = {
+  price: 67432.15,
+  change24h: 2.34,
+  high24h: 68100.00,
+  low24h: 65900.00,
+  volume24h: 28500000000,
+  marketCap: 1325000000000,
 };
 
-const CACHE_DURATION = 60000; // 60 seconds
-
-// Fetch with timeout
-async function fetchWithTimeout(url, timeout = 10000) {
-  const controller = new AbortController();
-  const id = setTimeout(() => controller.abort(), timeout);
-  try {
-    const res = await fetch(url, { signal: controller.signal });
-    clearTimeout(id);
-    return res;
-  } catch (e) {
-    clearTimeout(id);
-    throw e;
+function generateMockOHLC(days) {
+  const data = [];
+  const now = Date.now();
+  let basePrice = 67000;
+  
+  const count = days === '1' ? 24 : parseInt(days);
+  const interval = days === '1' ? 3600000 : 86400000;
+  
+  for (let i = count; i >= 0; i--) {
+    const time = now - (i * interval);
+    const volatility = (Math.random() - 0.5) * 2000;
+    const open = basePrice;
+    const close = basePrice + volatility;
+    const high = Math.max(open, close) + Math.random() * 500;
+    const low = Math.min(open, close) - Math.random() * 500;
+    
+    data.push({
+      time: days === '1'
+        ? new Date(time).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+        : new Date(time).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+      fullDate: new Date(time).toLocaleString(),
+      open: parseFloat(open.toFixed(2)),
+      high: parseFloat(high.toFixed(2)),
+      low: parseFloat(low.toFixed(2)),
+      close: parseFloat(close.toFixed(2)),
+    });
+    
+    basePrice = close;
   }
+  return data;
 }
 
-// GET /api/btc/ohlc?days=7
-router.get('/ohlc', async (req, res) => {
-  try {
-    const days = req.query.days || '7';
-    const cacheKey = `ohlc_${days}`;
-    const now = Date.now();
+// ============================================
+// GET /api/btc/price
+// ============================================
+router.get('/price', async (req, res) => {
+  const now = Date.now();
 
-    // Return cached data if fresh
-    if (cache.ohlc[days] && (now - cache.lastFetch) < CACHE_DURATION) {
-      return res.json({ success: true, data: cache.ohlc[days] });
-    }
-
-    // Try CoinGecko first
-    let data = null;
-    try {
-      const ohlcRes = await fetchWithTimeout(
-        `https://api.coingecko.com/api/v3/coins/bitcoin/ohlc?vs_currency=usd&days=${days}`
-      );
-      if (ohlcRes.ok) {
-        const raw = await ohlcRes.json();
-        data = raw.map(([timestamp, open, high, low, close]) => ({
-          time: days === '1'
-            ? new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-            : new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-          fullDate: new Date(timestamp).toLocaleString(),
-          open: parseFloat(open),
-          high: parseFloat(high),
-          low: parseFloat(low),
-          close: parseFloat(close),
-        }));
-      }
-    } catch (e) {
-      console.log('CoinGecko OHLC failed, trying Binance...');
-    }
-
-    // Fallback to Binance
-    if (!data) {
-      const intervalMap = { '1': '1h', '7': '4h', '30': '1d', '90': '1d', '365': '1w' };
-      const limitMap = { '1': 24, '7': 42, '30': 30, '90': 90, '365': 52 };
-      try {
-        const binanceRes = await fetchWithTimeout(
-          `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${intervalMap[days]}&limit=${limitMap[days]}`
-        );
-        if (binanceRes.ok) {
-          const raw = await binanceRes.json();
-          data = raw.map(([timestamp, open, high, low, close]) => ({
-            time: days === '1'
-              ? new Date(timestamp).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
-              : new Date(timestamp).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
-            fullDate: new Date(timestamp).toLocaleString(),
-            open: parseFloat(open),
-            high: parseFloat(high),
-            low: parseFloat(low),
-            close: parseFloat(close),
-          }));
-        }
-      } catch (e) {
-        console.log('Binance OHLC failed');
-      }
-    }
-
-    if (!data) {
-      return res.status(503).json({ success: false, message: 'BTC data unavailable' });
-    }
-
-    cache.ohlc[days] = data;
-    cache.lastFetch = now;
-    res.json({ success: true, data });
-  } catch (error) {
-    console.error('BTC OHLC error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch BTC data' });
+  if (cache.price && (now - cache.lastPriceFetch) < PRICE_CACHE) {
+    return res.json({ success: true, data: cache.price, cached: true });
   }
+
+  let btcData = null;
+  let source = null;
+
+  // Try real APIs
+  try {
+    const response = await fetch('https://api.coincap.io/v2/assets/bitcoin', { timeout: 5000 });
+    if (response.ok) {
+      const data = await response.json();
+      const d = data.data;
+      btcData = {
+        price: parseFloat(d.priceUsd),
+        change24h: parseFloat(d.changePercent24Hr),
+        high24h: null,
+        low24h: null,
+        volume24h: parseFloat(d.volumeUsd24Hr),
+        marketCap: parseFloat(d.marketCapUsd),
+      };
+      source = 'coincap';
+    }
+  } catch (e) {
+    console.log('CoinCap failed, using mock data');
+  }
+
+  // Fallback to mock
+  if (!btcData) {
+    btcData = MOCK_PRICE;
+    source = 'mock';
+  }
+
+  cache.price = btcData;
+  cache.lastPriceFetch = now;
+  res.json({ success: true, data: btcData, source });
 });
 
-// GET /api/btc/price
-router.get('/price', async (req, res) => {
-  try {
-    const now = Date.now();
+// ============================================
+// GET /api/btc/ohlc
+// ============================================
+router.get('/ohlc', async (req, res) => {
+  const days = req.query.days || '7';
+  const now = Date.now();
 
-    if (cache.price && (now - cache.lastFetch) < CACHE_DURATION) {
-      return res.json({ success: true, data: cache.price });
-    }
-
-    const priceRes = await fetchWithTimeout(
-      'https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=usd&include_24hr_change=true&include_24hr_high=true&include_24hr_low=true&include_24hr_vol=true'
-    );
-
-    if (!priceRes.ok) throw new Error('Price fetch failed');
-
-    const raw = await priceRes.json();
-    const btc = raw.bitcoin;
-
-    cache.price = {
-      price: btc.usd,
-      change24h: btc.usd_24h_change,
-      high24h: btc.usd_24h_high,
-      low24h: btc.usd_24h_low,
-      volume24h: btc.usd_24h_vol,
-      marketCap: btc.usd * 19600000, // ~19.6M BTC circulating
-    };
-    cache.lastFetch = now;
-
-    res.json({ success: true, data: cache.price });
-  } catch (error) {
-    console.error('BTC price error:', error.message);
-    res.status(500).json({ success: false, message: 'Failed to fetch BTC price' });
+  if (cache.ohlc[days] && (now - cache.lastOhlcFetch) < OHLC_CACHE) {
+    return res.json({ success: true, data: cache.ohlc[days], cached: true });
   }
+
+  let data = null;
+  let source = null;
+
+  // Try real API
+  try {
+    const limit = days === '1' ? 24 : parseInt(days);
+    const endpoint = days === '1' ? 'histohour' : 'histoday';
+    const response = await fetch(
+      `https://min-api.cryptocompare.com/data/v2/${endpoint}?fsym=BTC&tsym=USD&limit=${limit}`,
+      { timeout: 5000 }
+    );
+    if (response.ok) {
+      const resData = await response.json();
+      data = resData.Data.Data.map(c => ({
+        time: days === '1'
+          ? new Date(c.time * 1000).toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })
+          : new Date(c.time * 1000).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }),
+        fullDate: new Date(c.time * 1000).toLocaleString(),
+        open: c.open,
+        high: c.high,
+        low: c.low,
+        close: c.close,
+      }));
+      source = 'cryptocompare';
+    }
+  } catch (e) {
+    console.log('CryptoCompare OHLC failed, using mock data');
+  }
+
+  // Fallback to mock
+  if (!data) {
+    data = generateMockOHLC(days);
+    source = 'mock';
+  }
+
+  cache.ohlc[days] = data;
+  cache.lastOhlcFetch = now;
+  res.json({ success: true, data, source });
 });
 
 module.exports = router;

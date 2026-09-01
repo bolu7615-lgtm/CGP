@@ -42,10 +42,10 @@ function BitcoinChart() {
     setLoading(true)
     setError(false)
     try {
-      const [ohlcRes, priceRes] = await Promise.all([
-        api.get(`/btc/ohlc?days=${days}`),
-        api.get('/btc/price'),
-      ])
+          const [ohlcRes, priceRes] = await Promise.all([
+      api.get(`/btc/ohlc?days=${days}`),
+      api.get('/btc/price'),
+    ])
 
       if (ohlcRes.data.success) {
         setOhlcData(ohlcRes.data.data)
