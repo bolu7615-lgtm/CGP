@@ -1,0 +1,423 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ==================== USER ====================
+model User {
+  id              String    @id @default(uuid())
+  email           String    @unique
+  password        String
+  firstName       String
+  lastName        String
+  phone           String?
+  country         String?
+  city            String?
+  address         String?
+  dateOfBirth     DateTime?
+  
+  // KYC
+  kycStatus       KycStatus @default(PENDING)
+  kycSubmittedAt  DateTime?
+  kycVerifiedAt   DateTime?
+  kycRejectedAt   DateTime?
+  kycRejectionReason String?
+  
+  // Wallet
+  wallet          Wallet?
+  
+  // Investments
+  investments     Investment[]
+  
+  // Transactions
+  transactions    Transaction[]
+  
+  // Deposits
+  deposits        Deposit[]
+  
+  // Withdrawals
+  withdrawals     Withdrawal[]
+  
+  // Referrals
+  referralCode    String    @unique @default(uuid())
+  referredById    String?
+  referredBy      User?     @relation("Referrals", fields: [referredById], references: [id])
+  referrals       User[]    @relation("Referrals")
+  referralEarnings ReferralEarning[]
+  
+  // Roles
+  role            UserRole  @default(USER)
+  
+  // Security
+  isActive        Boolean   @default(true)
+  isBanned        Boolean   @default(false)
+  twoFactorEnabled Boolean  @default(false)
+  twoFactorSecret String?
+  emailVerified   Boolean   @default(false)
+  emailVerifyToken String?
+  emailVerifyExpires DateTime?
+  
+  // Login tracking
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  loginAttempts   Int       @default(0)
+  lockUntil       DateTime?
+  
+  // Notifications
+  emailNotifications Boolean @default(true)
+  
+  // Timestamps
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  
+  // KYC Documents
+  kycDocuments    KycDocument[]
+  
+  // Audit logs
+  auditLogs       AuditLog[]
+  
+  // Sessions
+  sessions        Session[]
+  
+  @@map("users")
+}
+
+enum KycStatus {
+  PENDING
+  SUBMITTED
+  APPROVED
+  REJECTED
+}
+
+enum UserRole {
+  USER
+  ADMIN
+  SUPER_ADMIN
+}
+
+// ==================== SESSION ====================
+model Session {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  refreshToken String?  @unique 
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  device    String?
+  ipAddress String?
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  
+  @@map("sessions")
+}
+
+// ==================== KYC DOCUMENT ====================
+model KycDocument {
+  id          String   @id @default(uuid())
+  userId      String
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        KycDocType
+  frontImage  String
+  backImage   String?
+  selfieImage String?
+  documentNumber String?
+  expiryDate  DateTime?
+  createdAt   DateTime @default(now())
+  
+  @@map("kyc_documents")
+}
+
+enum KycDocType {
+  PASSPORT
+  DRIVERS_LICENSE
+  NATIONAL_ID
+  RESIDENCE_PERMIT
+}
+
+// ==================== WALLET ====================
+model Wallet {
+  id              String   @id @default(uuid())
+  userId          String   @unique
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Balances
+  totalBalance    Decimal  @default(0) @db.Decimal(18, 8)
+  availableBalance Decimal @default(0) @db.Decimal(18, 8)
+  investedBalance Decimal  @default(0) @db.Decimal(18, 8)
+  totalEarnings   Decimal  @default(0) @db.Decimal(18, 8)
+  totalDeposited  Decimal  @default(0) @db.Decimal(18, 8)
+  totalWithdrawn  Decimal  @default(0) @db.Decimal(18, 8)
+  
+  // Crypto addresses (generated per user)
+  btcAddress      String?
+  ethAddress      String?
+  usdtTrc20Address String?
+  usdtErc20Address String?
+  bnbAddress      String?
+  solAddress      String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("wallets")
+}
+
+// ==================== INVESTMENT PLAN ====================
+model InvestmentPlan {
+  id              String   @id @default(uuid())
+  name            String
+  slug            String   @unique
+  description     String?
+  dailyRoi        Decimal  @db.Decimal(5, 2)  // e.g. 1.20 = 1.2%
+  durationDays    Int      // 30, 60, 90, 180
+  minAmount       Decimal  @db.Decimal(18, 2) // $4,000 minimum
+  maxAmount       Decimal  @db.Decimal(18, 2)
+  principalReturn Boolean  @default(true)
+  compoundInterest Boolean @default(false)
+  isActive        Boolean  @default(true)
+  sortOrder       Int      @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  investments     Investment[]
+  
+  @@map("investment_plans")
+}
+
+// ==================== INVESTMENT ====================
+model Investment {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  planId          String
+  plan            InvestmentPlan @relation(fields: [planId], references: [id])
+  
+  amount          Decimal  @db.Decimal(18, 2)
+  dailyProfit     Decimal  @db.Decimal(18, 2)
+  totalProfit     Decimal  @db.Decimal(18, 2)
+  totalReturn     Decimal  @db.Decimal(18, 2)
+  
+  status          InvestmentStatus @default(ACTIVE)
+  startDate       DateTime @default(now())
+  endDate         DateTime
+  lastProfitDate  DateTime @default(now())
+  
+  // Early withdrawal
+  earlyWithdrawal Boolean  @default(false)
+  earlyWithdrawalFee Decimal? @db.Decimal(5, 2) // 20% = 0.20
+  
+  // Profit tracking
+  profitsPaid     Decimal  @default(0) @db.Decimal(18, 2)
+  profitsCount    Int      @default(0)
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  // Related transactions
+  transactions    Transaction[]
+  
+  @@map("investments")
+}
+
+enum InvestmentStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  EARLY_WITHDRAWN
+}
+
+// ==================== TRANSACTION ====================
+model Transaction {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  type            TransactionType
+  status          TransactionStatus @default(PENDING)
+  
+  amount          Decimal  @db.Decimal(18, 8)
+  currency        String   @default("USD")
+  cryptoAmount    Decimal? @db.Decimal(18, 8)
+  cryptoCurrency  String?
+  
+  // Related records
+  investmentId    String?
+  investment      Investment? @relation(fields: [investmentId], references: [id])
+  depositId       String?
+  withdrawalId    String?
+  referralEarningId String?
+  
+  // Details
+  description     String?
+  metadata        Json?    // Store extra info like tx hash, wallet address, etc.
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("transactions")
+}
+
+enum TransactionType {
+  DEPOSIT
+  WITHDRAWAL
+  INVESTMENT
+  PROFIT
+  REFERRAL_BONUS
+  EARLY_WITHDRAWAL_FEE
+  ADMIN_ADJUSTMENT
+}
+
+enum TransactionStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED    
+  CANCELLED
+}
+
+// ==================== DEPOSIT ====================
+model Deposit {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal  @db.Decimal(18, 2)
+  cryptoAmount    Decimal  @db.Decimal(18, 8)
+  cryptoCurrency  String   // BTC, ETH, USDT-TRC20, etc.
+  
+  // Deposit details
+  walletAddress   String   // Address user sent to
+  txHash          String?  // Blockchain transaction hash
+  fromAddress     String?  // User's sending address
+  
+  status          DepositStatus @default(PENDING)
+  rejectedAt      DateTime?     // Make sure this exists
+  rejectionReason String?   
+  confirmedAt     DateTime?
+  confirmations   Int      @default(0)
+  
+  // Proof
+  proofImage      String?  // Screenshot of transfer
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("deposits")
+}
+
+enum DepositStatus {
+  PENDING
+  CONFIRMING
+  COMPLETED
+  REJECTED
+  FAILED
+}
+
+// ==================== WITHDRAWAL ====================
+model Withdrawal {
+  id              String   @id @default(uuid())
+  userId          String
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  amount          Decimal  @db.Decimal(18, 2)
+  cryptoAmount    Decimal  @db.Decimal(18, 8)
+  cryptoCurrency  String
+  
+  // Destination
+  walletAddress   String
+  network         String   // TRC20, ERC20, BEP20, etc.
+  
+  // Processing
+  status          WithdrawalStatus @default(PENDING)
+  processedAt     DateTime?
+  processedById   String?
+  txHash          String?
+  fee             Decimal  @default(0) @db.Decimal(18, 8)
+  
+  // Rejection
+  rejectionReason String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("withdrawals")
+}
+
+enum WithdrawalStatus {
+  PENDING
+  PROCESSING
+  COMPLETED
+  REJECTED
+}
+
+// ==================== REFERRAL EARNING ====================
+model ReferralEarning {
+  id              String   @id @default(uuid())
+  userId          String   // Who earned
+  user            User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  referredUserId  String   // Who was referred
+  level           Int      @default(1) // 1, 2, 3
+  
+  amount          Decimal  @db.Decimal(18, 2)
+  percentage      Decimal  @db.Decimal(5, 2)
+  
+  sourceType      String   // INVESTMENT, DEPOSIT, etc.
+  sourceId        String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("referral_earnings")
+}
+
+// ==================== AUDIT LOG ====================
+model AuditLog {
+  id              String   @id @default(uuid())
+  userId          String?
+  user            User?    @relation(fields: [userId], references: [id])
+  
+  action          String   // e.g. "KYC_APPROVED", "WITHDRAWAL_PROCESSED"
+  entityType      String   // "USER", "WITHDRAWAL", "DEPOSIT"
+  entityId        String?
+  
+  oldValue        Json?
+  newValue        Json?
+  ipAddress       String?
+  userAgent       String?
+  
+  createdAt       DateTime @default(now())
+  
+  @@map("audit_logs")
+}
+
+// ==================== EMAIL TEMPLATE ====================
+model EmailTemplate {
+  id              String   @id @default(uuid())
+  name            String   @unique
+  subject         String
+  body            String   // HTML template
+  variables       String[] // e.g. ["userName", "amount", "date"]
+  
+  isActive        Boolean  @default(true)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("email_templates")
+}
+
+// ==================== SITE SETTING ====================
+model SiteSetting {
+  id              String   @id @default(uuid())
+  key             String   @unique
+  value           String
+  description     String?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  
+  @@map("site_settings")
+}
