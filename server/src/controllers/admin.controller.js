@@ -218,7 +218,6 @@ async function adjustBalance(req, res, next) {
 
     const adjustAmount = parseFloat(amount);
 
-    // Update wallet
     const updateData = {};
     if (type === 'ADD') {
       updateData.totalBalance = { increment: adjustAmount };
@@ -244,7 +243,6 @@ async function adjustBalance(req, res, next) {
       data: updateData,
     });
 
-    // Create transaction
     await prisma.transaction.create({
       data: {
         userId,
@@ -256,7 +254,6 @@ async function adjustBalance(req, res, next) {
       },
     });
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
@@ -272,6 +269,168 @@ async function adjustBalance(req, res, next) {
     res.json({
       success: true,
       message: `Balance ${type === 'ADD' ? 'credited' : 'debited'} by $${adjustAmount}`,
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+// ==================== ADMIN EMAIL & PASSWORD CHANGE ====================
+
+async function changeAdminEmail(req, res, next) {
+  try {
+    const { newEmail, currentPassword } = req.body;
+    const adminId = req.user.id;
+
+    if (!newEmail || !currentPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New email and current password are required',
+      });
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(newEmail)) {
+      return res.status(400).json({
+        success: false,
+        message: 'Invalid email format',
+      });
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+    }
+
+    const { comparePassword } = require('../utils/crypto');
+    const isPasswordValid = await comparePassword(currentPassword, admin.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email: newEmail.toLowerCase() },
+    });
+
+    if (existingUser && existingUser.id !== adminId) {
+      return res.status(409).json({
+        success: false,
+        message: 'Email is already in use by another account',
+      });
+    }
+
+    const updatedAdmin = await prisma.user.update({
+      where: { id: adminId },
+      data: {
+        email: newEmail.toLowerCase(),
+        emailVerified: false,
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: adminId,
+        action: 'ADMIN_EMAIL_CHANGED',
+        entityType: 'USER',
+        entityId: adminId,
+        oldValue: { email: admin.email },
+        newValue: { email: newEmail.toLowerCase() },
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Email updated successfully. Please verify your new email.',
+      data: {
+        id: updatedAdmin.id,
+        email: updatedAdmin.email,
+        emailVerified: updatedAdmin.emailVerified,
+      },
+    });
+  } catch (error) {
+    next(error);
+  }
+}
+
+async function changeAdminPassword(req, res, next) {
+  try {
+    const { currentPassword, newPassword } = req.body;
+    const adminId = req.user.id;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required',
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long',
+      });
+    }
+
+    const admin = await prisma.user.findUnique({
+      where: { id: adminId },
+    });
+
+    if (!admin) {
+      return res.status(404).json({
+        success: false,
+        message: 'Admin not found',
+      });
+    }
+
+    const { comparePassword, hashPassword } = require('../utils/crypto');
+    const isPasswordValid = await comparePassword(currentPassword, admin.password);
+    if (!isPasswordValid) {
+      return res.status(401).json({
+        success: false,
+        message: 'Current password is incorrect',
+      });
+    }
+
+    const hashedPassword = await hashPassword(newPassword);
+
+    await prisma.user.update({
+      where: { id: adminId },
+      data: { password: hashedPassword },
+    });
+
+    // Optional: invalidate all other sessions
+    await prisma.session.deleteMany({
+      where: {
+        userId: adminId,
+        token: { not: req.token },
+      },
+    });
+
+    await prisma.auditLog.create({
+      data: {
+        userId: adminId,
+        action: 'ADMIN_PASSWORD_CHANGED',
+        entityType: 'USER',
+        entityId: adminId,
+        ipAddress: req.ip,
+        userAgent: req.headers['user-agent'],
+      },
+    });
+
+    res.json({
+      success: true,
+      message: 'Password updated successfully',
     });
   } catch (error) {
     next(error);
@@ -349,7 +508,6 @@ async function updateSetting(req, res, next) {
       data: { value: String(value) },
     });
 
-    // Audit log
     await prisma.auditLog.create({
       data: {
         userId: req.user.id,
@@ -412,7 +570,6 @@ async function updateEmailTemplate(req, res, next) {
     next(error);
   }
 }
-
 
 // ==================== DASHBOARD STATS ====================
 
@@ -607,8 +764,6 @@ async function getRecentActivity(req, res, next) {
       })),
     ];
 
-    // Sort by recency (using the original createdAt would be better but we use the string for display)
-    // Just shuffle to mix them up, then take top 8
     activities.sort(() => Math.random() - 0.5);
 
     res.json({ success: true, data: activities.slice(0, 8) });
@@ -636,6 +791,8 @@ module.exports = {
   getUserById,
   updateUser,
   adjustBalance,
+  changeAdminEmail,
+  changeAdminPassword,
   getAuditLogs,
   getSettings,
   updateSetting,

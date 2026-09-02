@@ -3,7 +3,7 @@ const router = express.Router();
 const adminController = require('../controllers/admin.controller');
 const { requireAdmin, requireSuperAdmin } = require('../middleware/admin.middleware');
 
-// ─── DASHBOARD STATS (NEW) ────────────────────────────────────────
+// ─── DASHBOARD STATS ────────────────────────────────────────
 router.get('/platform-stats', requireAdmin, adminController.getPlatformStats);
 router.get('/weekly-stats', requireAdmin, adminController.getWeeklyStats);
 router.get('/user-growth', requireAdmin, adminController.getUserGrowth);
@@ -14,6 +14,10 @@ router.get('/users', requireAdmin, adminController.getAllUsers);
 router.get('/users/:userId', requireAdmin, adminController.getUserById);
 router.put('/users/:userId', requireAdmin, adminController.updateUser);
 router.post('/users/:userId/balance', requireAdmin, adminController.adjustBalance);
+
+// ─── ADMIN EMAIL & PASSWORD CHANGE ──────────────────────────
+router.put('/change-email', requireAdmin, adminController.changeAdminEmail);
+router.put('/change-password', requireAdmin, adminController.changeAdminPassword);
 
 // Audit logs
 router.get('/audit-logs', requireAdmin, adminController.getAuditLogs);

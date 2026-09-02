@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
-import { 
-  Settings, 
-  Save, 
-  Bell, 
-  Shield, 
-  Globe, 
-  Mail, 
-  CreditCard, 
+import React, { useState } from 'react';
+import {
+  Settings,
+  Save,
+  Bell,
+  Shield,
+  Globe,
+  Mail,
+  CreditCard,
   Palette,
   Check,
   AlertCircle,
@@ -15,7 +15,9 @@ import {
   UserCog,
   Lock,
   Eye,
-  EyeOff
+  EyeOff,
+  User,
+  AtSign,
 } from 'lucide-react';
 
 const AdminSettings = () => {
@@ -23,6 +25,19 @@ const AdminSettings = () => {
   const [isSaving, setIsSaving] = useState(false);
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [showPassword, setShowPassword] = useState({});
+
+  // ─── ACCOUNT CHANGE STATES ─────────────────────────────
+  const [emailForm, setEmailForm] = useState({
+    newEmail: '',
+    currentPassword: '',
+  });
+  const [passwordForm, setPasswordForm] = useState({
+    currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+  const [accountLoading, setAccountLoading] = useState({ email: false, password: false });
+  const [accountMessage, setAccountMessage] = useState({ type: '', text: '' });
 
   const [settings, setSettings] = useState({
     general: {
@@ -74,32 +89,113 @@ const AdminSettings = () => {
     { id: 'general', label: 'General', icon: Globe },
     { id: 'notifications', label: 'Notifications', icon: Bell },
     { id: 'security', label: 'Security', icon: Shield },
+    { id: 'account', label: 'Account', icon: User },        // ← NEW
     { id: 'payments', label: 'Payments', icon: CreditCard },
     { id: 'appearance', label: 'Appearance', icon: Palette },
   ];
 
   const handleChange = (tab, field, value) => {
-    setSettings(prev => ({
+    setSettings((prev) => ({
       ...prev,
       [tab]: {
         ...prev[tab],
-        [field]: value
-      }
+        [field]: value,
+      },
     }));
     setSaveSuccess(false);
   };
 
   const handleSave = async () => {
     setIsSaving(true);
-    // Simulate API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
+    await new Promise((resolve) => setTimeout(resolve, 1500));
     setIsSaving(false);
     setSaveSuccess(true);
     setTimeout(() => setSaveSuccess(false), 3000);
   };
 
   const togglePassword = (field) => {
-    setShowPassword(prev => ({ ...prev, [field]: !prev[field] }));
+    setShowPassword((prev) => ({ ...prev, [field]: !prev[field] }));
+  };
+
+  // ─── EMAIL CHANGE HANDLER ──────────────────────────────
+  const handleEmailChange = async (e) => {
+    e.preventDefault();
+    setAccountLoading((prev) => ({ ...prev, email: true }));
+    setAccountMessage({ type: '', text: '' });
+
+    try {
+      const token = localStorage.getItem('accessToken'); // or however you store it
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/change-email`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          newEmail: emailForm.newEmail,
+          currentPassword: emailForm.currentPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setAccountMessage({ type: 'success', text: data.message });
+        setEmailForm({ newEmail: '', currentPassword: '' });
+      } else {
+        setAccountMessage({ type: 'error', text: data.message || 'Failed to update email' });
+      }
+    } catch (err) {
+      setAccountMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setAccountLoading((prev) => ({ ...prev, email: false }));
+    }
+  };
+
+  // ─── PASSWORD CHANGE HANDLER ───────────────────────────
+  const handlePasswordChange = async (e) => {
+    e.preventDefault();
+
+    if (passwordForm.newPassword !== passwordForm.confirmPassword) {
+      setAccountMessage({ type: 'error', text: 'New passwords do not match' });
+      return;
+    }
+
+    if (passwordForm.newPassword.length < 8) {
+      setAccountMessage({ type: 'error', text: 'Password must be at least 8 characters' });
+      return;
+    }
+
+    setAccountLoading((prev) => ({ ...prev, password: true }));
+    setAccountMessage({ type: '', text: '' });
+
+    try {
+      const token = localStorage.getItem('accessToken');
+      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/admin/change-password`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          currentPassword: passwordForm.currentPassword,
+          newPassword: passwordForm.newPassword,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (data.success) {
+        setAccountMessage({ type: 'success', text: data.message });
+        setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+      } else {
+        setAccountMessage({ type: 'error', text: data.message || 'Failed to update password' });
+      }
+    } catch (err) {
+      setAccountMessage({ type: 'error', text: 'Network error. Please try again.' });
+    } finally {
+      setAccountLoading((prev) => ({ ...prev, password: false }));
+    }
   };
 
   const colorOptions = [
@@ -113,13 +209,13 @@ const AdminSettings = () => {
     { name: 'Indigo', value: '#6366f1' },
   ];
 
+  // ─── RENDER FUNCTIONS ──────────────────────────────────
+
   const renderGeneralSettings = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Site Name
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Site Name</label>
           <input
             type="text"
             value={settings.general.siteName}
@@ -128,9 +224,7 @@ const AdminSettings = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Site Tagline
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Site Tagline</label>
           <input
             type="text"
             value={settings.general.siteTagline}
@@ -139,9 +233,7 @@ const AdminSettings = () => {
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Support Email
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Support Email</label>
           <div className="relative">
             <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
@@ -153,9 +245,7 @@ const AdminSettings = () => {
           </div>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Timezone
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Timezone</label>
           <select
             value={settings.general.timezone}
             onChange={(e) => handleChange('general', 'timezone', e.target.value)}
@@ -171,9 +261,7 @@ const AdminSettings = () => {
           </select>
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Date Format
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Date Format</label>
           <select
             value={settings.general.dateFormat}
             onChange={(e) => handleChange('general', 'dateFormat', e.target.value)}
@@ -293,9 +381,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Max Login Attempts
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Max Login Attempts</label>
           <input
             type="number"
             min="1"
@@ -307,9 +393,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Session Timeout (minutes)
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Session Timeout (minutes)</label>
           <input
             type="number"
             min="5"
@@ -321,9 +405,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Minimum Password Length
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Password Length</label>
           <input
             type="number"
             min="6"
@@ -335,9 +417,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            IP Whitelist (comma-separated)
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">IP Whitelist (comma-separated)</label>
           <input
             type="text"
             placeholder="192.168.1.1, 10.0.0.1"
@@ -370,13 +450,200 @@ const AdminSettings = () => {
     </div>
   );
 
+  // ─── NEW: ACCOUNT SETTINGS TAB ─────────────────────────
+  const renderAccountSettings = () => (
+    <div className="space-y-8">
+      {/* Alert Message */}
+      {accountMessage.text && (
+        <div
+          className={`flex items-center gap-2 p-4 rounded-lg ${
+            accountMessage.type === 'success'
+              ? 'bg-green-50 border border-green-200 text-green-800'
+              : 'bg-red-50 border border-red-200 text-red-800'
+          }`}
+        >
+          {accountMessage.type === 'success' ? <Check className="w-5 h-5" /> : <AlertCircle className="w-5 h-5" />}
+          <span className="font-medium">{accountMessage.text}</span>
+        </div>
+      )}
+
+      {/* Change Email Section */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
+            <AtSign className="w-5 h-5 text-blue-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Change Email Address</h3>
+            <p className="text-sm text-gray-500">Update your admin account email</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleEmailChange} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">New Email Address</label>
+            <div className="relative">
+              <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type="email"
+                required
+                placeholder="newemail@example.com"
+                value={emailForm.newEmail}
+                onChange={(e) => setEmailForm((prev) => ({ ...prev, newEmail: e.target.value }))}
+                className="w-full pl-10 pr-4 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type={showPassword.emailCurrent ? 'text' : 'password'}
+                required
+                placeholder="Enter current password"
+                value={emailForm.currentPassword}
+                onChange={(e) => setEmailForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => togglePassword('emailCurrent')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword.emailCurrent ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={accountLoading.email}
+            className="flex items-center gap-2 px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white font-medium rounded-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {accountLoading.email ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Update Email
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+
+      {/* Change Password Section */}
+      <div className="bg-white border border-gray-200 rounded-xl p-6">
+        <div className="flex items-center gap-3 mb-6">
+          <div className="w-10 h-10 bg-amber-100 rounded-lg flex items-center justify-center">
+            <Key className="w-5 h-5 text-amber-600" />
+          </div>
+          <div>
+            <h3 className="text-lg font-semibold text-gray-900">Change Password</h3>
+            <p className="text-sm text-gray-500">Set a new password for your admin account</p>
+          </div>
+        </div>
+
+        <form onSubmit={handlePasswordChange} className="space-y-4">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Current Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type={showPassword.current ? 'text' : 'password'}
+                required
+                placeholder="Enter current password"
+                value={passwordForm.currentPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, currentPassword: e.target.value }))}
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => togglePassword('current')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword.current ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">New Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type={showPassword.new ? 'text' : 'password'}
+                required
+                minLength={8}
+                placeholder="Min 8 characters"
+                value={passwordForm.newPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, newPassword: e.target.value }))}
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => togglePassword('new')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword.new ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">Confirm New Password</label>
+            <div className="relative">
+              <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <input
+                type={showPassword.confirm ? 'text' : 'password'}
+                required
+                placeholder="Re-enter new password"
+                value={passwordForm.confirmPassword}
+                onChange={(e) => setPasswordForm((prev) => ({ ...prev, confirmPassword: e.target.value }))}
+                className="w-full pl-10 pr-12 py-2.5 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 transition-colors"
+              />
+              <button
+                type="button"
+                onClick={() => togglePassword('confirm')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
+              >
+                {showPassword.confirm ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+              </button>
+            </div>
+          </div>
+
+          <button
+            type="submit"
+            disabled={accountLoading.password}
+            className="flex items-center gap-2 px-5 py-2.5 bg-amber-600 hover:bg-amber-700 text-white font-medium rounded-lg transition-all disabled:bg-gray-400 disabled:cursor-not-allowed"
+          >
+            {accountLoading.password ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Updating...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4" />
+                Update Password
+              </>
+            )}
+          </button>
+        </form>
+      </div>
+    </div>
+  );
+
   const renderPaymentSettings = () => (
     <div className="space-y-6">
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Default Currency
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Default Currency</label>
           <select
             value={settings.payments.currency}
             onChange={(e) => handleChange('payments', 'currency', e.target.value)}
@@ -392,9 +659,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Platform Fee (%)
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Platform Fee (%)</label>
           <input
             type="number"
             step="0.1"
@@ -407,9 +672,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Minimum Withdrawal Amount
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Minimum Withdrawal Amount</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
             <input
@@ -423,9 +686,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Maximum Withdrawal Amount
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Maximum Withdrawal Amount</label>
           <div className="relative">
             <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500 font-medium">$</span>
             <input
@@ -439,9 +700,7 @@ const AdminSettings = () => {
         </div>
 
         <div>
-          <label className="block text-sm font-medium text-gray-700 mb-2">
-            Processing Time
-          </label>
+          <label className="block text-sm font-medium text-gray-700 mb-2">Processing Time</label>
           <input
             type="text"
             value={settings.payments.processingTime}
@@ -502,9 +761,7 @@ const AdminSettings = () => {
   const renderAppearanceSettings = () => (
     <div className="space-y-6">
       <div>
-        <label className="block text-sm font-medium text-gray-700 mb-3">
-          Primary Color Theme
-        </label>
+        <label className="block text-sm font-medium text-gray-700 mb-3">Primary Color Theme</label>
         <div className="grid grid-cols-4 md:grid-cols-8 gap-3">
           {colorOptions.map((color) => (
             <button
@@ -615,10 +872,7 @@ const AdminSettings = () => {
           >
             Outline Button
           </button>
-          <div
-            className="w-4 h-4 rounded-full"
-            style={{ backgroundColor: settings.appearance.primaryColor }}
-          />
+          <div className="w-4 h-4 rounded-full" style={{ backgroundColor: settings.appearance.primaryColor }} />
           <div
             className="px-3 py-1 rounded-full text-sm font-medium text-white"
             style={{ backgroundColor: settings.appearance.primaryColor }}
@@ -632,12 +886,20 @@ const AdminSettings = () => {
 
   const renderContent = () => {
     switch (activeTab) {
-      case 'general': return renderGeneralSettings();
-      case 'notifications': return renderNotificationSettings();
-      case 'security': return renderSecuritySettings();
-      case 'payments': return renderPaymentSettings();
-      case 'appearance': return renderAppearanceSettings();
-      default: return renderGeneralSettings();
+      case 'general':
+        return renderGeneralSettings();
+      case 'notifications':
+        return renderNotificationSettings();
+      case 'security':
+        return renderSecuritySettings();
+      case 'account':
+        return renderAccountSettings();    // ← NEW
+      case 'payments':
+        return renderPaymentSettings();
+      case 'appearance':
+        return renderAppearanceSettings();
+      default:
+        return renderGeneralSettings();
     }
   };
 
@@ -656,38 +918,40 @@ const AdminSettings = () => {
                 <p className="text-sm text-gray-500">Manage your platform configuration</p>
               </div>
             </div>
-            <button
-              onClick={handleSave}
-              disabled={isSaving}
-              className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all ${
-                isSaving 
-                  ? 'bg-gray-400 cursor-not-allowed' 
-                  : 'bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-sm hover:shadow-md'
-              }`}
-            >
-              {isSaving ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Saving...
-                </>
-              ) : saveSuccess ? (
-                <>
-                  <Check className="w-4 h-4" />
-                  Saved!
-                </>
-              ) : (
-                <>
-                  <Save className="w-4 h-4" />
-                  Save Changes
-                </>
-              )}
-            </button>
+            {activeTab !== 'account' && (
+              <button
+                onClick={handleSave}
+                disabled={isSaving}
+                className={`flex items-center gap-2 px-5 py-2.5 rounded-lg font-medium text-white transition-all ${
+                  isSaving
+                    ? 'bg-gray-400 cursor-not-allowed'
+                    : 'bg-blue-600 hover:bg-blue-700 active:scale-95 shadow-sm hover:shadow-md'
+                }`}
+              >
+                {isSaving ? (
+                  <>
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Saving...
+                  </>
+                ) : saveSuccess ? (
+                  <>
+                    <Check className="w-4 h-4" />
+                    Saved!
+                  </>
+                ) : (
+                  <>
+                    <Save className="w-4 h-4" />
+                    Save Changes
+                  </>
+                )}
+              </button>
+            )}
           </div>
         </div>
       </div>
 
       {/* Success Banner */}
-      {saveSuccess && (
+      {saveSuccess && activeTab !== 'account' && (
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-4">
           <div className="flex items-center gap-2 p-4 bg-green-50 border border-green-200 rounded-lg text-green-800 animate-in slide-in-from-top-2">
             <Check className="w-5 h-5" />
@@ -707,7 +971,10 @@ const AdminSettings = () => {
                 return (
                   <button
                     key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
+                    onClick={() => {
+                      setActiveTab(tab.id);
+                      setAccountMessage({ type: '', text: '' });
+                    }}
                     className={`w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-medium transition-all ${
                       activeTab === tab.id
                         ? 'bg-blue-50 text-blue-700 shadow-sm border border-blue-200'
@@ -727,12 +994,10 @@ const AdminSettings = () => {
             <div className="bg-white rounded-xl border border-gray-200 shadow-sm">
               <div className="px-6 py-4 border-b border-gray-100">
                 <h2 className="text-lg font-semibold text-gray-900">
-                  {tabs.find(t => t.id === activeTab)?.label} Settings
+                  {tabs.find((t) => t.id === activeTab)?.label} Settings
                 </h2>
               </div>
-              <div className="p-6">
-                {renderContent()}
-              </div>
+              <div className="p-6">{renderContent()}</div>
             </div>
           </div>
         </div>

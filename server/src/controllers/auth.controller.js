@@ -89,7 +89,7 @@ async function register(req, res, next) {
       }
     }
 
-    // Create user with wallet
+     // Create user with wallet (KYC auto-verified)
     const user = await prisma.user.create({
       data: {
         email,
@@ -102,6 +102,10 @@ async function register(req, res, next) {
         referredById,
         emailVerifyToken: verifyCode,
         emailVerifyExpires: verifyExpires,
+        // Auto-verify KYC for all new users
+        kycStatus: 'APPROVED',
+        kycVerifiedAt: new Date(),
+        kycSubmittedAt: new Date(),
         wallet: {
           create: {
             btcAddress: `bc1${generateToken(20)}`,

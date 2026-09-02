@@ -10,6 +10,17 @@ const createDepositValidation = [
   body('cryptoCurrency').isIn(['BTC', 'ETH', 'USDT-TRC20', 'USDT-ERC20', 'BNB', 'SOL']),
 ];
 
+// ==================== HELPERS ====================
+
+/**
+ * Get the start of "today" based on your reset time (midnight UTC or local).
+ * Adjust if you want a different timezone.
+ */
+function getTodayStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
 // ==================== GET DEPOSIT ADDRESSES ====================
 
 async function getDepositAddresses(req, res, next) {
@@ -60,26 +71,29 @@ async function createDeposit(req, res, next) {
 
     const userId = req.user.id;
     const { amount, cryptoCurrency, fromAddress } = req.body;
+    const depositAmount = parseFloat(amount);
+    const todayStart = getTodayStart();
 
-    // Check user's total deposited amount
-    const userDeposits = await prisma.deposit.aggregate({
+    // Check user's total deposited amount for TODAY only
+    const todayDeposits = await prisma.deposit.aggregate({
       where: {
         userId,
         status: { in: ['PENDING', 'CONFIRMING', 'COMPLETED'] },
+        createdAt: { gte: todayStart }, // Only count deposits from today (since midnight)
       },
       _sum: { amount: true },
     });
 
-    const totalDeposited = userDeposits._sum.amount || 0;
-    const newTotal = totalDeposited + parseFloat(amount);
+    const totalDepositedToday = todayDeposits._sum.amount || 0;
+    const newTotalToday = totalDepositedToday + depositAmount;
 
-    if (newTotal > 1000) {
-      const remaining = Math.max(0, 1000 - totalDeposited);
+    if (newTotalToday > 1000) {
+      const remaining = Math.max(0, 1000 - totalDepositedToday);
       return res.status(400).json({
         success: false,
         message: remaining > 0 
-          ? `Maximum deposit limit is $1,000. You have deposited $${totalDeposited.toFixed(2)}. You can only deposit up to $${remaining.toFixed(2)} more.`
-          : 'You have reached the maximum deposit limit of $1,000.',
+          ? `Daily deposit limit is $1,000. You have deposited $${totalDepositedToday.toFixed(2)} today. You can only deposit up to $${remaining.toFixed(2)} more today.`
+          : 'You have reached the daily deposit limit of $1,000. Try again after midnight.',
       });
     }
 
@@ -107,12 +121,12 @@ async function createDeposit(req, res, next) {
       SOL: 152.39,
     };
 
-    const cryptoAmount = parseFloat(amount) / prices[cryptoCurrency];
+    const cryptoAmount = depositAmount / prices[cryptoCurrency];
 
     const deposit = await prisma.deposit.create({
       data: {
         userId,
-        amount: parseFloat(amount),
+        amount: depositAmount,
         cryptoAmount,
         cryptoCurrency,
         walletAddress,
@@ -126,7 +140,7 @@ async function createDeposit(req, res, next) {
         userId,
         type: 'DEPOSIT',
         status: 'PENDING',
-        amount: parseFloat(amount),
+        amount: depositAmount,
         currency: 'USD',
         cryptoAmount,
         cryptoCurrency,
