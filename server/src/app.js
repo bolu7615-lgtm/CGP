@@ -29,6 +29,7 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://cgp-eta.vercel.app',
+    'https://www.capitalgrowthprogram.com/',
     process.env.FRONTEND_URL,
   ].filter(Boolean),
   credentials: true,
