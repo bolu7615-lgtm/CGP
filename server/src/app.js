@@ -1,7 +1,6 @@
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
-const rateLimit = require('express-rate-limit');
 
 // Import routes
 const authRoutes = require('./routes/auth.routes');
@@ -29,51 +28,16 @@ app.use(cors({
     'http://localhost:5173',
     'http://localhost:3000',
     'https://cgp-eta.vercel.app',
-    'https://capitalgrowthprogram.com',     
-    'https://www.capitalgrowthprogram.com',   
+    'https://capitalgrowthprogram.com',
+    'https://www.capitalgrowthprogram.com',
     process.env.FRONTEND_URL,
   ].filter(Boolean),
   credentials: true,
 }));
 
-// Body parsing - MUST come BEFORE rate limiters that read req.body
+// Body parsing
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true, limit: '10mb' }));
-
-// Auth rate limiter (30 per 15 min)
-const authLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 30,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many auth attempts, please try again later.',
-  },
-});
-
-// General API rate limiter (200 per 15 min) - skip admin routes
-const apiLimiter = rateLimit({
-  windowMs: 15 * 60 * 1000,
-  max: 200,
-  standardHeaders: true,
-  legacyHeaders: false,
-  message: {
-    success: false,
-    message: 'Too many requests, please try again later.',
-  },
-  skip: (req) => req.path.startsWith('/admin'),
-});
-
-// Apply general limiter to /api routes
-app.use('/api', apiLimiter);
-
-// Apply stricter auth limiter to specific auth routes
-app.use('/api/auth/login', authLimiter);
-app.use('/api/auth/register', authLimiter);
-app.use('/api/auth/forgot-password', authLimiter);
-app.use('/api/auth/verify-login-otp', authLimiter);
-app.use('/api/auth/resend-verification', authLimiter);
 
 // Static files for uploads
 app.use('/uploads', express.static('uploads'));
