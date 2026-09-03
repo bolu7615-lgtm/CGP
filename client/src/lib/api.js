@@ -5,7 +5,8 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  withCredentials: true,
+  // REMOVED: withCredentials: true
+  // Not needed since we use localStorage tokens, not cookies
 })
 
 // Request interceptor - add auth token
@@ -20,8 +21,9 @@ api.interceptors.request.use(
   (error) => Promise.reject(error)
 )
 
-// Track if we're already redirecting to prevent loops
-let isRedirecting = false
+// Track if we're already redirecting to prevent loops (using sessionStorage for cross-tab safety)
+const getIsRedirecting = () => sessionStorage.getItem('cgp_redirecting') === 'true'
+const setIsRedirecting = (val) => sessionStorage.setItem('cgp_redirecting', val ? 'true' : 'false')
 
 // Response interceptor - handle token refresh & errors
 api.interceptors.response.use(
@@ -40,8 +42,8 @@ api.interceptors.response.use(
 
       const refreshToken = localStorage.getItem('cgp_refresh')
       if (!refreshToken) {
-        if (!isRedirecting) {
-          isRedirecting = true
+        if (!getIsRedirecting()) {
+          setIsRedirecting(true)
           localStorage.removeItem('cgp_token')
           window.location.href = '/login'
         }
@@ -59,8 +61,8 @@ api.interceptors.response.use(
         return api.request(originalRequest)
       } catch (refreshError) {
         console.error('Refresh token failed:', refreshError.response?.data || refreshError.message)
-        if (!isRedirecting) {
-          isRedirecting = true
+        if (!getIsRedirecting()) {
+          setIsRedirecting(true)
           localStorage.removeItem('cgp_token')
           localStorage.removeItem('cgp_refresh')
           window.location.href = '/login'
