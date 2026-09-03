@@ -1,5 +1,48 @@
 {
   "rewrites": [
-    { "source": "/(.*)", "destination": "/index.html" }
+    {
+      "source": "/sitemap.xml",
+      "destination": "/sitemap.xml"
+    },
+    {
+      "source": "/robots.txt",
+      "destination": "/robots.txt"
+    },
+    {
+      "source": "/googleea8d715c0edc8f15.html",
+      "destination": "/googleea8d715c0edc8f15.html"
+    },
+    {
+      "source": "/cgp-logo.svg",
+      "destination": "/cgp-logo.svg"
+    },
+    {
+      "source": "/og-image.jpg",
+      "destination": "/og-image.jpg"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
+    }
+  ],
+  "headers": [
+    {
+      "source": "/sitemap.xml",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "application/xml"
+        }
+      ]
+    },
+    {
+      "source": "/robots.txt",
+      "headers": [
+        {
+          "key": "Content-Type",
+          "value": "text/plain"
+        }
+      ]
+    }
   ]
 }
