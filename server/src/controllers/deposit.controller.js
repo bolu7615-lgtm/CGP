@@ -3,23 +3,34 @@ const { body, validationResult } = require('express-validator');
 const { sendDepositEmail, sendPlansLockedEmail } = require('../utils/email');
 const { generateDepositId } = require('../utils/generateId');
 
+// ==================== HELPERS ====================
+
+const getClientIp = (req) => {
+  return req.headers['x-forwarded-for']?.split(',')[0]?.trim()
+    || req.headers['x-real-ip']
+    || req.ip
+    || req.connection?.remoteAddress
+    || 'unknown';
+};
+
+const getUserAgent = (req) => {
+  return (req.headers['user-agent'] || 'unknown').substring(0, 200);
+};
+
+/**
+ * Get the start of "today" based on your reset time (midnight UTC or local).
+ */
+function getTodayStart() {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+}
+
 // ==================== VALIDATION ====================
 
 const createDepositValidation = [
   body('amount').isFloat({ min: 50, max: 1000 }).withMessage('Deposit amount must be between $50 and $1,000'),
   body('cryptoCurrency').isIn(['BTC', 'ETH', 'USDT-TRC20', 'USDT-ERC20', 'BNB', 'SOL']),
 ];
-
-// ==================== HELPERS ====================
-
-/**
- * Get the start of "today" based on your reset time (midnight UTC or local).
- * Adjust if you want a different timezone.
- */
-function getTodayStart() {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
-}
 
 // ==================== GET DEPOSIT ADDRESSES ====================
 
@@ -74,12 +85,11 @@ async function createDeposit(req, res, next) {
     const depositAmount = parseFloat(amount);
     const todayStart = getTodayStart();
 
-    // Check user's total deposited amount for TODAY only
     const todayDeposits = await prisma.deposit.aggregate({
       where: {
         userId,
         status: { in: ['PENDING', 'CONFIRMING', 'COMPLETED'] },
-        createdAt: { gte: todayStart }, // Only count deposits from today (since midnight)
+        createdAt: { gte: todayStart },
       },
       _sum: { amount: true },
     });
@@ -91,7 +101,7 @@ async function createDeposit(req, res, next) {
       const remaining = Math.max(0, 1000 - totalDepositedToday);
       return res.status(400).json({
         success: false,
-        message: remaining > 0 
+        message: remaining > 0
           ? `Daily deposit limit is $1,000. You have deposited $${totalDepositedToday.toFixed(2)} today. You can only deposit up to $${remaining.toFixed(2)} more today.`
           : 'You have reached the daily deposit limit of $1,000. Try again after midnight.',
       });
@@ -285,7 +295,6 @@ async function getAllDeposits(req, res, next) {
       prisma.deposit.count({ where }),
     ]);
 
-    // Get stats for the dashboard cards
     const stats = await prisma.deposit.groupBy({
       by: ['status'],
       _count: { status: true },
@@ -359,7 +368,6 @@ async function confirmDeposit(req, res, next) {
       data: { status: 'COMPLETED' },
     });
 
-    // Update wallet and get new totalDeposited
     const updatedWallet = await prisma.wallet.update({
       where: { userId: deposit.userId },
       data: {
@@ -377,14 +385,11 @@ async function confirmDeposit(req, res, next) {
       'Completed'
     );
 
-    // Check if this deposit pushed user to $4,000+ for the first time
-    // Calculate previous total (before this deposit was added)
     const previousTotal = parseFloat(updatedWallet.totalDeposited) - parseFloat(deposit.amount);
     const newTotal = parseFloat(updatedWallet.totalDeposited);
 
-    // Only send if they just crossed $4,000 threshold (were below before, now at/above)
     if (previousTotal < 4000 && newTotal >= 4000) {
-      console.log(`🎯 User ${deposit.user.email} just crossed $4,000 deposit threshold!`);
+      console.log(`User ${deposit.user.email} just crossed $4,000 deposit threshold!`);
       await sendPlansLockedEmail(
         deposit.user.email,
         deposit.user.firstName,
@@ -399,8 +404,8 @@ async function confirmDeposit(req, res, next) {
         entityType: 'DEPOSIT',
         entityId: id,
         newValue: { status: 'COMPLETED', amount: deposit.amount },
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
+        ipAddress: getClientIp(req),
+        userAgent: getUserAgent(req),
       },
     });
 
@@ -468,8 +473,8 @@ async function rejectDeposit(req, res, next) {
         entityId: id,
         oldValue: { status: deposit.status },
         newValue: { status: 'REJECTED', reason: reason || 'Rejected by admin' },
-        ipAddress: req.ip,
-        userAgent: req.headers['user-agent'],
+        ipAddress: getClientIp(req),
+        userAgent: getUserAgent(req),
       },
     });
 

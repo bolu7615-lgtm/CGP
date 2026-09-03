@@ -5,48 +5,60 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
-  // REMOVED: withCredentials: true
-  // Not needed since we use localStorage tokens, not cookies
 })
 
-// Request interceptor - add auth token
+// Public endpoints - NEVER send auth token, NEVER try to refresh on 401
+const PUBLIC_ENDPOINTS = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh-token',
+  '/auth/verify-login-otp',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+  '/auth/resend-verification',
+]
+
+// Request interceptor - add auth token (skip for public endpoints)
 api.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem('cgp_token')
-    if (token) {
-      config.headers.Authorization = `Bearer ${token}`
+    const url = config.url || ''
+    const isPublic = PUBLIC_ENDPOINTS.some(endpoint => url.includes(endpoint))
+
+    if (!isPublic) {
+      const token = localStorage.getItem('cgp_token')
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`
+      }
     }
     return config
   },
   (error) => Promise.reject(error)
 )
 
-// Track if we're already redirecting to prevent loops (using sessionStorage for cross-tab safety)
-const getIsRedirecting = () => sessionStorage.getItem('cgp_redirecting') === 'true'
-const setIsRedirecting = (val) => sessionStorage.setItem('cgp_redirecting', val ? 'true' : 'false')
-
 // Response interceptor - handle token refresh & errors
 api.interceptors.response.use(
   (response) => response,
   async (error) => {
     const originalRequest = error.config
+    const url = originalRequest?.url || ''
+
+    // Don't try to refresh on public endpoints (login, register, etc.)
+    const isPublic = PUBLIC_ENDPOINTS.some(endpoint => url.includes(endpoint))
+    if (isPublic) {
+      const message = error.response?.data?.message || 'Something went wrong'
+      error.message = message
+      return Promise.reject(error)
+    }
 
     // If 401 and not already retrying
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true
 
-      // Only skip refresh on the refresh-token endpoint itself
-      if (originalRequest.url === '/auth/refresh-token') {
-        return Promise.reject(error)
-      }
-
       const refreshToken = localStorage.getItem('cgp_refresh')
       if (!refreshToken) {
-        if (!getIsRedirecting()) {
-          setIsRedirecting(true)
-          localStorage.removeItem('cgp_token')
-          window.location.href = '/login'
-        }
+        localStorage.removeItem('cgp_token')
+        window.location.href = '/login'
         return new Promise(() => {})
       }
 
@@ -60,13 +72,9 @@ api.interceptors.response.use(
 
         return api.request(originalRequest)
       } catch (refreshError) {
-        console.error('Refresh token failed:', refreshError.response?.data || refreshError.message)
-        if (!getIsRedirecting()) {
-          setIsRedirecting(true)
-          localStorage.removeItem('cgp_token')
-          localStorage.removeItem('cgp_refresh')
-          window.location.href = '/login'
-        }
+        localStorage.removeItem('cgp_token')
+        localStorage.removeItem('cgp_refresh')
+        window.location.href = '/login'
         return new Promise(() => {})
       }
     }
