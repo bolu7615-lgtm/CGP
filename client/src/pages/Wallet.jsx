@@ -174,6 +174,18 @@ export default function WalletPage() {
             </div>
           </div>
 
+          {/* Funding Info */}
+          <div className="mt-4 bg-cgp-dark/50 rounded-lg p-4 space-y-2">
+            <div className="flex items-start gap-2 text-xs text-cgp-text">
+              <span className="text-cgp-gold mt-0.5">•</span>
+              <span>Funding can finish sooner than 9 months. Each day's confirmed deposits cannot exceed $1,000.</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-cgp-text">
+              <span className="text-cgp-gold mt-0.5">•</span>
+              <span>60 days maturity period starts only after $40,000 is fully funded.</span>
+            </div>
+          </div>
+
           {/* Stats Grid */}
           <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
             <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
@@ -305,68 +317,70 @@ export default function WalletPage() {
             </div>
 
             <div className="space-y-4">
+              {/* Step 1: Funding Stage */}
               <div className="bg-cgp-dark rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-cgp-gold/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <Calendar className="w-4 h-4 text-cgp-gold" />
+                    <span className="text-cgp-gold font-bold text-sm">1</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">Fund Over 9 Months</h3>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm text-cgp-gold">Funding Stage</h3>
                     <p className="text-xs text-cgp-text mt-1">
-                      You have up to 9 months to reach the $40,000 target. Deposit at your own pace within the limits.
+                      Reach $40,000 in confirmed deposits.
+                    </p>
+                    <p className="text-xs text-cgp-text mt-1">
+                      Up to 9 months. Daily cap $1,000. Monthly minimum $4,000.
                     </p>
                   </div>
                 </div>
               </div>
 
+              {/* Step 2: Current Progress */}
               <div className="bg-cgp-dark rounded-xl p-4">
                 <div className="flex items-start gap-3">
                   <div className="w-8 h-8 rounded-lg bg-cgp-gold/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <DollarSign className="w-4 h-4 text-cgp-gold" />
+                    <span className="text-cgp-gold font-bold text-sm">2</span>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">Contribution Limits</h3>
-                    <div className="mt-2 space-y-1.5">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-cgp-text">Maximum per day:</span>
-                        <span className="font-medium text-cgp-green">${MAX_DAILY.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-cgp-text">Minimum per month:</span>
-                        <span className="font-medium text-cgp-blue">${MIN_MONTHLY.toLocaleString()}</span>
-                      </div>
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="text-cgp-text">Maximum period:</span>
-                        <span className="font-medium text-cgp-gold">{FUNDING_MONTHS} months</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              <div className="bg-cgp-dark rounded-xl p-4">
-                <div className="flex items-start gap-3">
-                  <div className="w-8 h-8 rounded-lg bg-cgp-gold/10 flex items-center justify-center shrink-0 mt-0.5">
-                    <TrendingUp className="w-4 h-4 text-cgp-gold" />
-                  </div>
-                  <div>
-                    <h3 className="font-semibold text-sm">Unlock Elite Plan</h3>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm text-cgp-gold">Current Progress</h3>
                     <p className="text-xs text-cgp-text mt-1">
-                      Once you reach $40,000 in total deposits, the Elite Plan ($40,000) is fully unlocked for investment. Earn 2.5% daily ROI with $1,000/day profit.
+                      ${parseFloat(wallet?.totalDeposited || 0).toLocaleString()} of $40,000 ({Math.min(100, Math.round(((wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100))}%). ${Math.max(0, FUNDING_TARGET - parseFloat(wallet?.totalDeposited || 0)).toLocaleString()} remaining.
                     </p>
                   </div>
                 </div>
               </div>
 
-              <div className="bg-cgp-gold/10 border border-cgp-gold/20 rounded-xl p-4">
-                <div className="flex items-center gap-2 text-sm text-cgp-gold">
-                  <Timer className="w-4 h-4" />
-                  <span className="font-medium">Your current progress</span>
+              {/* Step 3: After $40,000 Reached */}
+              <div className="bg-cgp-dark rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-cgp-gold/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-cgp-gold font-bold text-sm">3</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm text-cgp-gold">After $40,000 is Reached</h3>
+                    <p className="text-xs text-cgp-text mt-1">
+                      Funding closes. A 60-day simulated maturity period begins.
+                    </p>
+                  </div>
                 </div>
-                <p className="text-xs text-cgp-text mt-1">
-                  You have deposited <span className="text-cgp-gold font-bold">${parseFloat(wallet?.totalDeposited || 0).toLocaleString()}</span> of <span className="text-white font-bold">${FUNDING_TARGET.toLocaleString()}</span>. 
-                  <span className="text-cgp-gold"> {Math.max(0, FUNDING_TARGET - parseFloat(wallet?.totalDeposited || 0)).toLocaleString()} more to go!</span>
-                </p>
+              </div>
+
+              {/* Step 4: After 60 Days */}
+              <div className="bg-cgp-dark rounded-xl p-4">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 rounded-lg bg-cgp-gold/10 flex items-center justify-center shrink-0 mt-0.5">
+                    <span className="text-cgp-gold font-bold text-sm">4</span>
+                  </div>
+                  <div className="flex-1">
+                    <h3 className="font-semibold text-sm text-cgp-gold">After 60 Days</h3>
+                    <p className="text-xs text-cgp-text mt-1">
+                      Projected demo value: $100,000.
+                    </p>
+                    <p className="text-xs text-cgp-text mt-1">
+                      Withdrawal unlocks only then.
+                    </p>
+                  </div>
+                </div>
               </div>
             </div>
 

@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
-import { useNavigate } from 'react-router-dom'
+import { useNavigate, Link } from 'react-router-dom'
 import {
   ArrowUpRight,
+  ArrowDownLeft,
   AlertCircle,
   Wallet,
   CheckCircle2,
@@ -13,6 +14,7 @@ import toast from 'react-hot-toast'
 export default function Withdraw() {
   const [step, setStep] = useState(1)
   const [info, setInfo] = useState(null)
+  const [walletData, setWalletData] = useState(null)
   const [amount, setAmount] = useState('')
   const [walletAddress, setWalletAddress] = useState('')
   const [loading, setLoading] = useState(false)
@@ -20,8 +22,15 @@ export default function Withdraw() {
 
   const navigate = useNavigate()
 
+  // Elite Plan funding target
+  const FUNDING_TARGET = 40000
+  const FUNDING_MONTHS = 9
+  const MIN_MONTHLY = 4000
+  const MAX_DAILY = 1000
+
   useEffect(() => {
     fetchWithdrawalInfo()
+    fetchWalletData()
   }, [])
 
   const fetchWithdrawalInfo = async () => {
@@ -30,6 +39,15 @@ export default function Withdraw() {
       setInfo(res.data.data)
     } catch (err) {
       toast.error('Failed to load withdrawal info')
+    }
+  }
+
+  const fetchWalletData = async () => {
+    try {
+      const res = await api.get('/wallet')
+      setWalletData(res.data.data)
+    } catch (err) {
+      console.error('Failed to load wallet data')
     }
   }
 
@@ -84,6 +102,105 @@ export default function Withdraw() {
         <p className="text-cgp-text">Withdraw your earnings via Bitcoin (BTC)</p>
       </div>
 
+      {/* Funding Stage - Show when $4k+ deposited but target not reached */}
+      {walletData?.wallet?.totalDeposited >= 4000 && walletData?.wallet?.totalDeposited < FUNDING_TARGET && (
+        <div className="bg-cgp-card border border-cgp-gold/30 rounded-xl p-6 relative overflow-hidden">
+          {/* Gold glow effect */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cgp-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-cgp-gold/10 flex items-center justify-center">
+              <AlertCircle className="w-5 h-5 text-cgp-gold" />
+            </div>
+            <div>
+              <h2 className="font-semibold text-white text-lg">Withdrawal Unavailable</h2>
+              <p className="text-sm text-cgp-gold">Your Growth Program is in funding stage</p>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-4">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-cgp-text">Funding Progress</span>
+              <span className="font-bold text-cgp-gold">
+                {Math.min(100, Math.round(((walletData?.wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100))}%
+              </span>
+            </div>
+            <div className="w-full h-3 bg-cgp-dark rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cgp-gold to-amber-400 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, ((walletData?.wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100)}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Stats */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Deposited</p>
+              <p className="text-lg font-bold text-cgp-gold">
+                ${parseFloat(walletData?.wallet?.totalDeposited || 0).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Remaining</p>
+              <p className="text-lg font-bold text-white">
+                ${Math.max(0, FUNDING_TARGET - parseFloat(walletData?.wallet?.totalDeposited || 0)).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Target</p>
+              <p className="text-lg font-bold text-cgp-green">
+                ${FUNDING_TARGET.toLocaleString()}
+              </p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Duration</p>
+              <p className="text-lg font-bold text-cgp-blue">
+                {FUNDING_MONTHS} months
+              </p>
+            </div>
+          </div>
+
+          {/* Withdrawal Requirements */}
+          <div className="bg-cgp-dark rounded-xl p-4 mb-4">
+            <p className="text-sm font-medium text-white mb-3">Withdrawal opens after:</p>
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-5 h-5 rounded-full bg-cgp-gold/20 flex items-center justify-center">
+                  <span className="text-xs text-cgp-gold font-bold">1</span>
+                </div>
+                <span className="text-cgp-text">Funding target is completed ($40,000)</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm">
+                <div className="w-5 h-5 rounded-full bg-cgp-gold/20 flex items-center justify-center">
+                  <span className="text-xs text-cgp-gold font-bold">2</span>
+                </div>
+                <span className="text-cgp-text">60 days maturity has been finished</span>
+              </div>
+            </div>
+          </div>
+
+          {/* Action Buttons */}
+          <div className="flex flex-wrap gap-3">
+            <Link
+              to="/wallet"
+              className="flex items-center gap-2 px-6 py-3 bg-cgp-gold text-cgp-dark font-semibold rounded-xl btn-gold"
+            >
+              <ArrowDownLeft className="w-5 h-5" />
+              Continue Funding
+            </Link>
+            <Link
+              to="/transactions"
+              className="flex items-center gap-2 px-6 py-3 border border-cgp-border text-white font-semibold rounded-xl hover:bg-white/5 transition-colors"
+            >
+              <Wallet className="w-5 h-5" />
+              View Transactions
+            </Link>
+          </div>
+        </div>
+      )}
+
       {/* Available Balance */}
       <div className="bg-cgp-card border border-cgp-border rounded-xl p-6 flex items-center justify-between">
         <div className="flex items-center gap-4">
@@ -101,7 +218,7 @@ export default function Withdraw() {
         </div>
       </div>
 
-      {step === 1 ? (
+      {step === 1 && !(walletData?.wallet?.totalDeposited >= 4000 && walletData?.wallet?.totalDeposited < FUNDING_TARGET) ? (
         <div className="bg-cgp-card border border-cgp-border rounded-xl p-6 max-w-xl">
           <div className="space-y-5">
             {/* BTC Badge */}

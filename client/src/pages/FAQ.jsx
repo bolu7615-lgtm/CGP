@@ -31,12 +31,16 @@ export default function FAQ() {
           a: 'Our Starter Plan begins at $4,000. We cater to serious investors looking for substantial returns. Plans range from $4,000 to $1,000,000 depending on the tier.',
         },
         {
-          q: 'How are profits calculated and paid?',
-          a: 'Profits are calculated daily based on your plan\'s ROI percentage. They are automatically credited to your wallet every 24 hours. You can withdraw or reinvest at any time.',
+          q: 'How are daily returns calculated?',
+          a: 'Returns are not paid on partial deposits. They start only after the plan amount is fully funded and invested. From that day, the plan runs for 60 days with daily ROI credited to your balance.',
         },
         {
-          q: 'Can I withdraw my principal early?',
-          a: 'Early withdrawal is available with a 20% fee. We recommend holding until maturity for maximum returns. Principal is automatically returned at the end of the plan term.',
+          q: 'When can I withdraw my earnings?',
+          a: 'Your funds stay locked in the plan until the 60-day term ends. After your investment matures, the full amount (principal + profits) becomes available for withdrawal.',
+        },
+        {
+          q: 'What happens if I want to withdraw early?',
+          a: 'Early withdrawal is not available. Withdrawals open only after the 60-day term completes. Once your investment matures, you can withdraw your full balance at any time.',
         },
         {
           q: 'What happens when my plan matures?',
