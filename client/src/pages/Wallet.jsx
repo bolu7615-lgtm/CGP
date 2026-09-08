@@ -204,31 +204,6 @@ export default function WalletPage() {
         </div>
       )}
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-4">
-        <Link
-          to="/deposit"
-          className="flex items-center gap-2 px-6 py-3 bg-cgp-gold text-cgp-dark font-semibold rounded-xl btn-gold"
-        >
-          <ArrowDownLeft className="w-5 h-5" />
-          Deposit BTC
-        </Link>
-        <Link
-          to="/withdraw"
-          className="flex items-center gap-2 px-6 py-3 border border-cgp-border text-white font-semibold rounded-xl hover:bg-white/5 transition-colors"
-        >
-          <ArrowUpRight className="w-5 h-5" />
-          Withdraw BTC
-        </Link>
-        <Link
-          to="/investments"
-          className="flex items-center gap-2 px-6 py-3 border border-cgp-border text-white font-semibold rounded-xl hover:bg-white/5 transition-colors"
-        >
-          <TrendingUp className="w-5 h-5" />
-          Invest
-        </Link>
-      </div>
-
       {/* BTC Deposit Address */}
       <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
         <h2 className="font-semibold mb-4 flex items-center gap-2">

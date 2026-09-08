@@ -203,7 +203,7 @@ export default function Investments() {
         {hasMinDeposit && (
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-cgp-gold/10 border border-cgp-gold/30 rounded-full text-sm text-cgp-gold">
             <Lock className="w-4 h-4" />
-            $4,000+ deposited. Only Elite Plan is available.
+            Starter allocation closed. Growth plan funding is active.
           </div>
         )}
       </div>
