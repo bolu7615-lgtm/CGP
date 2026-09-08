@@ -42,10 +42,10 @@ function BitcoinChart() {
     setLoading(true)
     setError(false)
     try {
-          const [ohlcRes, priceRes] = await Promise.all([
-      api.get(`/btc/ohlc?days=${days}`),
-      api.get('/btc/price'),
-    ])
+      const [ohlcRes, priceRes] = await Promise.all([
+        api.get(`/btc/ohlc?days=${days}`),
+        api.get('/btc/price'),
+      ])
 
       if (ohlcRes.data.success) {
         setOhlcData(ohlcRes.data.data)
@@ -87,12 +87,11 @@ function BitcoinChart() {
   const isPositive = (priceData?.change24h || 0) >= 0
   const currentPrice = priceData?.price || 0
 
-  // Chart calculations
   const chartHeight = 260
   const plotHeight = chartHeight - 40
 
-  const allPrices = ohlcData.length > 0 
-    ? ohlcData.flatMap(d => [d.high, d.low]) 
+  const allPrices = ohlcData.length > 0
+    ? ohlcData.flatMap(d => [d.high, d.low])
     : [60000, 70000]
   const minPrice = Math.min(...allPrices) * 0.995
   const maxPrice = Math.max(...allPrices) * 1.005
@@ -101,22 +100,22 @@ function BitcoinChart() {
   const scaleY = (price) => ((maxPrice - price) / priceRange) * plotHeight
 
   return (
-    <div className="bg-[#111827] border border-[#1f2937] rounded-2xl p-5 overflow-hidden">
+    <div className="bg-[#0d1117] border border-[#1c2128] rounded-2xl p-5 overflow-hidden">
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-5">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-orange-500/15 flex items-center justify-center">
+          <div className="w-10 h-10 rounded-xl bg-orange-500/10 flex items-center justify-center">
             <Bitcoin className="w-5 h-5 text-orange-400" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h2 className="font-bold text-white">Bitcoin</h2>
+              <h2 className="font-semibold text-white">Bitcoin</h2>
               <span className="text-xs text-slate-500">BTC/USD</span>
             </div>
             <div className="flex items-center gap-2 mt-0.5">
-              <span className="text-xl font-bold text-white">{formatPrice(currentPrice)}</span>
+              <span className="text-xl font-semibold text-white">{formatPrice(currentPrice)}</span>
               {priceData?.change24h !== undefined && (
-                <span className={`flex items-center gap-0.5 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                <span className={`flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full ${
                   isPositive ? 'text-emerald-400 bg-emerald-400/10' : 'text-red-400 bg-red-400/10'
                 }`}>
                   {isPositive ? <TrendingUp className="w-3 h-3" /> : <TrendingDown className="w-3 h-3" />}
@@ -132,10 +131,10 @@ function BitcoinChart() {
             <button
               key={k}
               onClick={() => setTimeRange(k)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
                 timeRange === k
-                  ? 'bg-[#F5A623] text-[#0a0e1a]'
-                  : 'bg-[#0a0e1a] text-slate-500 hover:text-white'
+                  ? 'bg-[#F5A623] text-[#0d1117]'
+                  : 'bg-[#161b22] text-slate-500 hover:text-white'
               }`}
             >
               {l}
@@ -143,7 +142,7 @@ function BitcoinChart() {
           ))}
           <button
             onClick={() => fetchData(timeRange)}
-            className="p-1.5 rounded-lg bg-[#0a0e1a] text-slate-500 hover:text-white transition-colors ml-1"
+            className="p-1.5 rounded-lg bg-[#161b22] text-slate-500 hover:text-white transition-colors ml-1"
           >
             <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} />
           </button>
@@ -160,7 +159,7 @@ function BitcoinChart() {
           <div className="h-full flex flex-col items-center justify-center text-slate-500 gap-2">
             <Bitcoin className="w-8 h-8 opacity-30" />
             <p className="text-sm">Chart data unavailable</p>
-            <button 
+            <button
               onClick={() => fetchData(timeRange)}
               className="text-xs text-[#F5A623] hover:underline"
             >
@@ -179,7 +178,7 @@ function BitcoinChart() {
             {/* Grid */}
             <div className="absolute left-0 right-[55px] top-0 bottom-[30px]">
               {[0, 0.5, 1].map((pct, i) => (
-                <div key={i} className="absolute left-0 right-0 border-t border-[#1f2937]/50" style={{ top: `${pct * 100}%` }} />
+                <div key={i} className="absolute left-0 right-0 border-t border-[#1c2128]/60" style={{ top: `${pct * 100}%` }} />
               ))}
             </div>
 
@@ -201,12 +200,12 @@ function BitcoinChart() {
                 return (
                   <g key={i}>
                     <line x1={`${x}%`} y1={yHigh} x2={`${x}%`} y2={yLow} stroke={color} strokeWidth={0.5} />
-                    <rect 
-                      x={`${x - candleW / 2}%`} 
-                      y={bodyTop} 
-                      width={`${candleW}%`} 
-                      height={bodyH} 
-                      fill={color} 
+                    <rect
+                      x={`${x - candleW / 2}%`}
+                      y={bodyTop}
+                      width={`${candleW}%`}
+                      height={bodyH}
+                      fill={color}
                       rx={0.5}
                     />
                   </g>
@@ -225,73 +224,73 @@ function BitcoinChart() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#1f2937]">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 pt-4 border-t border-[#1c2128]">
         <div>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">24h High</p>
-          <p className="text-sm font-semibold text-emerald-400">{formatPrice(priceData?.high24h)}</p>
+          <p className="text-sm font-medium text-emerald-400">{formatPrice(priceData?.high24h)}</p>
         </div>
         <div>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">24h Low</p>
-          <p className="text-sm font-semibold text-red-400">{formatPrice(priceData?.low24h)}</p>
+          <p className="text-sm font-medium text-red-400">{formatPrice(priceData?.low24h)}</p>
         </div>
         <div>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">24h Volume</p>
-          <p className="text-sm font-semibold text-white">{formatLarge(priceData?.volume24h)}</p>
+          <p className="text-sm font-medium text-white">{formatLarge(priceData?.volume24h)}</p>
         </div>
         <div>
           <p className="text-[10px] text-slate-500 uppercase tracking-wider">Market Cap</p>
-          <p className="text-sm font-semibold text-white">{formatLarge(priceData?.marketCap)}</p>
+          <p className="text-sm font-medium text-white">{formatLarge(priceData?.marketCap)}</p>
         </div>
       </div>
     </div>
   )
 }
 
-// ─── STAT CARD COMPONENT ──────────────────────────────────────────
+// ─── STAT CARD ──────────────────────────────────────────
 function StatCard({ title, value, icon: Icon, color, link }) {
   const colorMap = {
-    gold: { text: 'text-[#F5A623]', bg: 'bg-[#F5A623]/10', border: 'border-[#F5A623]/15', hover: 'hover:border-[#F5A623]/40' },
-    blue: { text: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/15', hover: 'hover:border-blue-400/40' },
-    green: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/15', hover: 'hover:border-emerald-400/40' },
-    purple: { text: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/15', hover: 'hover:border-purple-400/40' },
+    gold: { text: 'text-[#F5A623]', bg: 'bg-[#F5A623]/10', border: 'border-[#F5A623]/10', hover: 'hover:border-[#F5A623]/30' },
+    blue: { text: 'text-blue-400', bg: 'bg-blue-400/10', border: 'border-blue-400/10', hover: 'hover:border-blue-400/30' },
+    green: { text: 'text-emerald-400', bg: 'bg-emerald-400/10', border: 'border-emerald-400/10', hover: 'hover:border-emerald-400/30' },
+    purple: { text: 'text-purple-400', bg: 'bg-purple-400/10', border: 'border-purple-400/10', hover: 'hover:border-purple-400/30' },
   }
   const c = colorMap[color] || colorMap.gold
 
   return (
     <Link
       to={link}
-      className={`group bg-[#111827] border ${c.border} rounded-2xl p-5 ${c.hover} transition-all duration-300 hover:translate-y-[-2px]`}
+      className={`group bg-[#0d1117] border ${c.border} rounded-2xl p-5 ${c.hover} transition-all duration-200`}
     >
       <div className="flex items-center justify-between mb-3">
-        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center group-hover:scale-110 transition-transform duration-300`}>
+        <div className={`w-10 h-10 rounded-xl ${c.bg} flex items-center justify-center`}>
           <Icon className={`w-5 h-5 ${c.text}`} />
         </div>
-        <ChevronRight className="w-4 h-4 text-slate-600 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:translate-x-0.5" />
+        <ChevronRight className="w-4 h-4 text-slate-600 opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
       </div>
-      <p className="text-2xl font-bold text-white tracking-tight">{value}</p>
+      <p className="text-2xl font-semibold text-white tracking-tight">{value}</p>
       <p className="text-sm text-slate-500 mt-1">{title}</p>
     </Link>
   )
 }
 
-// ─── INVESTMENT ROW ───────────────────────────────────────────────
+// ─── INVESTMENT ROW ───────────────────────────────────────
 function InvestmentRow({ inv }) {
   return (
-    <div className="flex items-center justify-between p-3.5 bg-[#0a0e1a] rounded-xl border border-[#1f2937]/50 hover:border-[#F5A623]/20 transition-all">
+    <div className="flex items-center justify-between p-3.5 bg-[#161b22] rounded-xl border border-[#1c2128] hover:border-[#F5A623]/20 transition-colors">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-9 h-9 rounded-lg bg-[#F5A623]/10 flex items-center justify-center shrink-0">
           <Zap className="w-4 h-4 text-[#F5A623]" />
         </div>
         <div className="min-w-0">
-          <p className="text-sm font-semibold text-white truncate">{inv.plan?.name || 'Investment'}</p>
+          <p className="text-sm font-medium text-white truncate">{inv.plan?.name || 'Investment'}</p>
           <p className="text-xs text-slate-500">${parseFloat(inv.amount).toLocaleString()}</p>
         </div>
       </div>
       <div className="text-right shrink-0 ml-3">
-        <p className="text-sm font-semibold text-emerald-400">+${parseFloat(inv.dailyProfit).toFixed(2)}/d</p>
+        <p className="text-sm font-medium text-emerald-400">+${parseFloat(inv.dailyProfit).toFixed(2)}/d</p>
         <div className="flex items-center gap-1.5 mt-1">
-          <div className="w-16 h-1.5 bg-[#1f2937] rounded-full overflow-hidden">
-            <div 
+          <div className="w-16 h-1.5 bg-[#1c2128] rounded-full overflow-hidden">
+            <div
               className="h-full bg-gradient-to-r from-[#F5A623] to-amber-400 rounded-full transition-all"
               style={{ width: `${Math.min(inv.progress || 0, 100)}%` }}
             />
@@ -303,7 +302,7 @@ function InvestmentRow({ inv }) {
   )
 }
 
-// ─── TRANSACTION ROW ──────────────────────────────────────────────
+// ─── TRANSACTION ROW ──────────────────────────────────────
 function TransactionRow({ tx }) {
   const icons = {
     DEPOSIT: ArrowDownLeft,
@@ -323,7 +322,7 @@ function TransactionRow({ tx }) {
   const isOut = tx.type === 'WITHDRAWAL' || tx.type === 'INVESTMENT'
 
   return (
-    <div className="flex items-center justify-between p-3.5 bg-[#0a0e1a] rounded-xl border border-[#1f2937]/50 hover:border-[#F5A623]/20 transition-all">
+    <div className="flex items-center justify-between p-3.5 bg-[#161b22] rounded-xl border border-[#1c2128] hover:border-[#F5A623]/20 transition-colors">
       <div className="flex items-center gap-3 min-w-0">
         <div className="w-9 h-9 rounded-lg bg-white/5 flex items-center justify-center shrink-0">
           <TxIcon className={`w-4 h-4 ${colors[tx.type] || 'text-slate-500'}`} />
@@ -336,7 +335,7 @@ function TransactionRow({ tx }) {
         </div>
       </div>
       <div className="text-right shrink-0 ml-3">
-        <p className={`text-sm font-bold ${isOut ? 'text-red-400' : 'text-emerald-400'}`}>
+        <p className={`text-sm font-semibold ${isOut ? 'text-red-400' : 'text-emerald-400'}`}>
           {isOut ? '-' : '+'}${parseFloat(tx.amount).toLocaleString('en-US', { minimumFractionDigits: 2 })}
         </p>
         <span className={`text-[10px] px-2 py-0.5 rounded-full ${
@@ -352,7 +351,7 @@ function TransactionRow({ tx }) {
   )
 }
 
-// ─── MAIN DASHBOARD ───────────────────────────────────────────────
+// ─── MAIN DASHBOARD ───────────────────────────────────────
 export default function Dashboard() {
   const { user } = useAuth()
   const [wallet, setWallet] = useState(null)
@@ -418,25 +417,25 @@ export default function Dashboard() {
       {/* ── HEADER ── */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-white">
-            Welcome back, {user?.firstName}!
+          <h1 className="text-2xl font-semibold text-white">
+            Welcome back, {user?.firstName}
           </h1>
           <p className="text-sm text-slate-500 mt-1 flex items-center gap-1.5">
             <Sparkles className="w-3.5 h-3.5 text-[#F5A623]" />
-            Here&apos;s your portfolio overview
+            Here's your portfolio overview
           </p>
         </div>
         <div className="flex items-center gap-2.5">
           <Link
             to="/investments"
-            className="px-5 py-2.5 bg-[#F5A623] text-[#0a0e1a] font-semibold rounded-xl hover:bg-amber-500 transition-colors text-sm flex items-center gap-1.5"
+            className="px-5 py-2.5 bg-[#F5A623] text-[#0d1117] font-medium rounded-xl hover:bg-amber-500 transition-colors text-sm flex items-center gap-1.5"
           >
             <TrendingUp className="w-4 h-4" />
             Invest
           </Link>
           <Link
-            to="/wallet"
-            className="px-5 py-2.5 border border-[#1f2937] text-white font-medium rounded-xl hover:border-[#F5A623]/30 transition-colors text-sm flex items-center gap-1.5"
+            to="/deposit"
+            className="px-5 py-2.5 border border-[#1c2128] text-white font-medium rounded-xl hover:border-[#F5A623]/30 transition-colors text-sm flex items-center gap-1.5"
           >
             <ArrowDownLeft className="w-4 h-4" />
             Deposit
@@ -458,11 +457,11 @@ export default function Dashboard() {
           <BitcoinChart />
         </div>
 
-        <div className="lg:col-span-2 bg-[#111827] border border-[#1f2937] rounded-2xl p-5">
+        <div className="lg:col-span-2 bg-[#0d1117] border border-[#1c2128] rounded-2xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <BarChart3 className="w-4 h-4 text-[#F5A623]" />
-              <h2 className="font-bold text-white">Portfolio</h2>
+              <h2 className="font-semibold text-white">Portfolio</h2>
             </div>
             <Link to="/investments" className="text-xs text-[#F5A623] hover:text-amber-400 flex items-center gap-0.5 transition-colors">
               View All <ArrowRight className="w-3 h-3" />
@@ -490,8 +489,8 @@ export default function Dashboard() {
                     </Pie>
                     <Tooltip
                       contentStyle={{
-                        backgroundColor: '#111827',
-                        border: '1px solid #1f2937',
+                        backgroundColor: '#0d1117',
+                        border: '1px solid #1c2128',
                         borderRadius: '10px',
                         padding: '8px',
                         fontSize: '12px',
@@ -508,7 +507,7 @@ export default function Dashboard() {
                       <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
                       <span className="text-slate-400 text-xs">{item.name}</span>
                     </div>
-                    <span className="font-semibold text-white text-xs">${item.value.toLocaleString()}</span>
+                    <span className="font-medium text-white text-xs">${item.value.toLocaleString()}</span>
                   </div>
                 ))}
               </div>
@@ -519,7 +518,7 @@ export default function Dashboard() {
               <p className="text-sm">No active investments</p>
               <Link
                 to="/investments"
-                className="px-4 py-2 bg-[#F5A623] text-[#0a0e1a] text-xs font-semibold rounded-xl hover:bg-amber-500 transition-colors"
+                className="px-4 py-2 bg-[#F5A623] text-[#0d1117] text-xs font-medium rounded-xl hover:bg-amber-500 transition-colors"
               >
                 Start Investing
               </Link>
@@ -531,11 +530,11 @@ export default function Dashboard() {
       {/* ── INVESTMENTS & TRANSACTIONS ── */}
       <div className="grid lg:grid-cols-2 gap-5">
         {/* Active Investments */}
-        <div className="bg-[#111827] border border-[#1f2937] rounded-2xl p-5">
+        <div className="bg-[#0d1117] border border-[#1c2128] rounded-2xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <TrendingUp className="w-4 h-4 text-blue-400" />
-              <h2 className="font-bold text-white">Active Investments</h2>
+              <h2 className="font-semibold text-white">Active Investments</h2>
             </div>
             <Link to="/investments" className="text-xs text-[#F5A623] hover:text-amber-400 flex items-center gap-0.5 transition-colors">
               All <ArrowRight className="w-3 h-3" />
@@ -550,13 +549,13 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-10">
-              <div className="w-12 h-12 rounded-full bg-[#0a0e1a] flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-[#161b22] flex items-center justify-center mx-auto mb-3">
                 <TrendingUp className="w-6 h-6 text-slate-600" />
               </div>
               <p className="text-slate-500 text-sm mb-3">No active investments yet</p>
               <Link
                 to="/investments"
-                className="px-5 py-2.5 bg-[#F5A623] text-[#0a0e1a] text-sm font-semibold rounded-xl hover:bg-amber-500 transition-colors inline-flex items-center gap-1.5"
+                className="px-5 py-2.5 bg-[#F5A623] text-[#0d1117] text-sm font-medium rounded-xl hover:bg-amber-500 transition-colors inline-flex items-center gap-1.5"
               >
                 <Zap className="w-4 h-4" />
                 Start Investing
@@ -566,11 +565,11 @@ export default function Dashboard() {
         </div>
 
         {/* Recent Transactions */}
-        <div className="bg-[#111827] border border-[#1f2937] rounded-2xl p-5">
+        <div className="bg-[#0d1117] border border-[#1c2128] rounded-2xl p-5">
           <div className="flex items-center justify-between mb-5">
             <div className="flex items-center gap-2">
               <Clock className="w-4 h-4 text-emerald-400" />
-              <h2 className="font-bold text-white">Recent Transactions</h2>
+              <h2 className="font-semibold text-white">Recent Transactions</h2>
             </div>
             <Link to="/transactions" className="text-xs text-[#F5A623] hover:text-amber-400 flex items-center gap-0.5 transition-colors">
               All <ArrowRight className="w-3 h-3" />
@@ -585,7 +584,7 @@ export default function Dashboard() {
             </div>
           ) : (
             <div className="text-center py-10 text-slate-500">
-              <div className="w-12 h-12 rounded-full bg-[#0a0e1a] flex items-center justify-center mx-auto mb-3">
+              <div className="w-12 h-12 rounded-full bg-[#161b22] flex items-center justify-center mx-auto mb-3">
                 <Clock className="w-6 h-6 text-slate-600" />
               </div>
               <p className="text-sm">No transactions yet</p>
@@ -595,14 +594,14 @@ export default function Dashboard() {
       </div>
 
       {/* ── SECURITY BANNER ── */}
-      <div className="bg-gradient-to-r from-[#F5A623]/8 via-[#F5A623]/3 to-transparent border border-[#F5A623]/15 rounded-2xl p-5">
+      <div className="bg-gradient-to-r from-[#F5A623]/5 to-transparent border border-[#F5A623]/10 rounded-2xl p-5">
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-[#F5A623]/15 flex items-center justify-center shrink-0">
+            <div className="w-10 h-10 rounded-xl bg-[#F5A623]/10 flex items-center justify-center shrink-0">
               <Shield className="w-5 h-5 text-[#F5A623]" />
             </div>
             <div>
-              <h3 className="font-bold text-white text-sm sm:text-base">Secure Your Account</h3>
+              <h3 className="font-medium text-white text-sm sm:text-base">Secure Your Account</h3>
               <p className="text-xs sm:text-sm text-slate-500">
                 Enable two-factor authentication for enhanced security
               </p>
@@ -610,7 +609,7 @@ export default function Dashboard() {
           </div>
           <Link
             to="/settings"
-            className="px-5 py-2.5 bg-[#F5A623] text-[#0a0e1a] font-semibold rounded-xl hover:bg-amber-500 transition-colors text-sm whitespace-nowrap shrink-0"
+            className="px-5 py-2.5 bg-[#F5A623] text-[#0d1117] font-medium rounded-xl hover:bg-amber-500 transition-colors text-sm whitespace-nowrap shrink-0"
           >
             Enable 2FA
           </Link>

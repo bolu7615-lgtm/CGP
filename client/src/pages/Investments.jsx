@@ -1,18 +1,9 @@
 import { useState, useEffect } from 'react'
-import { Link } from 'react-router-dom'
 import {
-  TrendingUp,
-  Clock,
   CheckCircle2,
-  AlertCircle,
-  ChevronRight,
-  DollarSign,
-  Percent,
-  Calendar,
-  Wallet,
-  BarChart3,
   X,
   Lock,
+  Target,
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -96,6 +87,12 @@ const ALL_PLANS = [
   },
 ]
 
+// Elite Plan funding constants
+const FUNDING_TARGET = 40000
+const FUNDING_MONTHS = 9
+const MIN_MONTHLY = 4000
+const MAX_DAILY = 1000
+
 export default function Investments() {
   const [myInvestments, setMyInvestments] = useState([])
   const [walletData, setWalletData] = useState(null)
@@ -124,8 +121,13 @@ export default function Investments() {
     }
   }
 
+  const totalDeposited = parseFloat(walletData?.wallet?.totalDeposited || 0)
+
   // Check if user has deposited $4,000 or more
-  const hasMinDeposit = (walletData?.wallet?.totalDeposited || 0) >= 4000
+  const hasMinDeposit = totalDeposited >= 4000
+
+  // Elite plan is locked until $40,000 is fully funded
+  const eliteUnlocked = totalDeposited >= FUNDING_TARGET
 
   // Filter plans: if user has deposited $4k+, only show tier-5 (Elite). Otherwise show all.
   const PLANS = hasMinDeposit
@@ -133,6 +135,13 @@ export default function Investments() {
     : ALL_PLANS
 
   const openInvestModal = (plan) => {
+    // Block investing in Elite until funding target is reached
+    if (plan.id === 'tier-5' && !eliteUnlocked) {
+      toast.error(
+        `Elite Plan unlocks at $${FUNDING_TARGET.toLocaleString()} funding. Keep depositing!`
+      )
+      return
+    }
     setSelectedPlan(plan)
     setAmount(plan.deposit.toString())
     setShowModal(true)
@@ -200,95 +209,183 @@ export default function Investments() {
         <p className="text-cgp-text">
           Choose a 60-day plan that suits your investment goals
         </p>
-        {hasMinDeposit && (
+        {hasMinDeposit && !eliteUnlocked && (
           <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-cgp-gold/10 border border-cgp-gold/30 rounded-full text-sm text-cgp-gold">
             <Lock className="w-4 h-4" />
-            Starter allocation closed. Growth plan funding is active.
+            Starter allocation closed. Elite plan funding is active.
+          </div>
+        )}
+        {eliteUnlocked && (
+          <div className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-cgp-green/10 border border-cgp-green/30 rounded-full text-sm text-cgp-green">
+            <CheckCircle2 className="w-4 h-4" />
+            Elite Plan unlocked! You can now invest.
           </div>
         )}
       </div>
 
       {/* Plans Grid */}
       <div className={`grid gap-6 ${PLANS.length === 1 ? 'max-w-sm mx-auto' : 'md:grid-cols-2 lg:grid-cols-5'}`}>
-        {PLANS.map((plan) => (
-          <div
-            key={plan.id}
-            className={`relative bg-cgp-card border rounded-2xl p-6 transition-all hover:scale-[1.02] ${
-              plan.popular ? 'border-cgp-gold' : 'border-cgp-border'
-            }`}
-          >
-            {plan.popular && (
-              <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-cgp-gold text-cgp-dark text-xs font-bold rounded-full">
-                Most Popular
-              </div>
-            )}
-            <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
-            <div className="mb-2">
-              <span className="text-3xl font-bold text-cgp-gold">
-                ${plan.dailyProfit.toLocaleString()}
-              </span>
-              <span className="text-sm text-cgp-text"> / day</span>
-            </div>
-            <div className="mb-4">
-              <span className="text-sm text-cgp-gold font-medium">
-                {plan.dailyRoi}% Daily ROI
-              </span>
-            </div>
-
-            <div className="space-y-2 mb-6 text-sm">
-              <div className="flex justify-between">
-                <span className="text-cgp-text">Deposit:</span>
-                <span className="font-medium">
-                  ${plan.deposit.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cgp-text">Duration:</span>
-                <span className="font-medium">{plan.durationDays} Days</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cgp-text">Total Profit:</span>
-                <span className="font-medium text-cgp-green">
-                  ${plan.totalProfit.toLocaleString()}
-                </span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-cgp-text">Total Return:</span>
-                <span className="font-medium text-cgp-gold">
-                  ${plan.totalReturn.toLocaleString()}
-                </span>
-              </div>
-            </div>
-
-            <div className="space-y-2 mb-6">
-              {[
-                `${plan.dailyRoi}% Daily ROI`,
-                'Principal Return',
-                `${plan.durationDays}-Day Fixed Term`,
-              ].map((feat, i) => (
-                <div
-                  key={i}
-                  className="flex items-center gap-2 text-sm text-cgp-text-light"
-                >
-                  <CheckCircle2 className="w-4 h-4 text-cgp-green" />
-                  {feat}
-                </div>
-              ))}
-            </div>
-
-            <button
-              onClick={() => openInvestModal(plan)}
-              className={`w-full py-3 rounded-xl font-semibold transition-colors ${
-                plan.popular
-                  ? 'bg-cgp-gold text-cgp-dark btn-gold'
-                  : 'border border-cgp-border hover:bg-white/5'
+        {PLANS.map((plan) => {
+          const isLockedElite = plan.id === 'tier-5' && hasMinDeposit && !eliteUnlocked
+          return (
+            <div
+              key={plan.id}
+              className={`relative bg-cgp-card border rounded-2xl p-6 transition-all hover:scale-[1.02] ${
+                plan.popular ? 'border-cgp-gold' : 'border-cgp-border'
               }`}
             >
-              Invest Now
-            </button>
-          </div>
-        ))}
+              {plan.popular && (
+                <div className="absolute -top-3 left-1/2 -translate-x-1/2 px-3 py-1 bg-cgp-gold text-cgp-dark text-xs font-bold rounded-full">
+                  Most Popular
+                </div>
+              )}
+              <h3 className="text-lg font-semibold mb-2">{plan.name}</h3>
+              <div className="mb-2">
+                <span className="text-3xl font-bold text-cgp-gold">
+                  ${plan.dailyProfit.toLocaleString()}
+                </span>
+                <span className="text-sm text-cgp-text"> / day</span>
+              </div>
+              <div className="mb-4">
+                <span className="text-sm text-cgp-gold font-medium">
+                  {plan.dailyRoi}% Daily ROI
+                </span>
+              </div>
+
+              <div className="space-y-2 mb-6 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-cgp-text">Deposit:</span>
+                  <span className="font-medium">${plan.deposit.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-cgp-text">Duration:</span>
+                  <span className="font-medium">{plan.durationDays} Days</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-cgp-text">Total Profit:</span>
+                  <span className="font-medium text-cgp-green">
+                    ${plan.totalProfit.toLocaleString()}
+                  </span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-cgp-text">Total Return:</span>
+                  <span className="font-medium text-cgp-gold">
+                    ${plan.totalReturn.toLocaleString()}
+                  </span>
+                </div>
+              </div>
+
+              <div className="space-y-2 mb-6">
+                {[
+                  `${plan.dailyRoi}% Daily ROI`,
+                  'Principal Return',
+                  `${plan.durationDays}-Day Fixed Term`,
+                ].map((feat, i) => (
+                  <div key={i} className="flex items-center gap-2 text-sm text-cgp-text-light">
+                    <CheckCircle2 className="w-4 h-4 text-cgp-green" />
+                    {feat}
+                  </div>
+                ))}
+              </div>
+
+              <button
+                onClick={() => openInvestModal(plan)}
+                disabled={isLockedElite}
+                className={`w-full py-3 rounded-xl font-semibold transition-colors flex items-center justify-center gap-2 ${
+                  isLockedElite
+                    ? 'bg-cgp-dark border border-cgp-border text-cgp-text cursor-not-allowed'
+                    : plan.popular
+                      ? 'bg-cgp-gold text-cgp-dark btn-gold'
+                      : 'border border-cgp-border hover:bg-white/5'
+                }`}
+              >
+                {isLockedElite ? (
+                  <>
+                    <Lock className="w-4 h-4" />
+                    Locked until $40,000
+                  </>
+                ) : (
+                  'Invest Now'
+                )}
+              </button>
+            </div>
+          )
+        })}
       </div>
+
+      {/* Elite Plan Funding Progress — under the plans, shows only after $4k deposited */}
+      {hasMinDeposit && (
+        <div className="bg-cgp-card border border-cgp-gold/30 rounded-xl p-6 relative overflow-hidden">
+          {/* Gold glow effect */}
+          <div className="absolute top-0 right-0 w-32 h-32 bg-cgp-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
+
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-lg bg-cgp-gold/10 flex items-center justify-center">
+                <Target className="w-5 h-5 text-cgp-gold" />
+              </div>
+              <div>
+                <h2 className="font-semibold text-white">Elite Plan Funding</h2>
+                <p className="text-xs text-cgp-text">
+                  Target: ${FUNDING_TARGET.toLocaleString()} over {FUNDING_MONTHS} months
+                </p>
+              </div>
+            </div>
+          </div>
+
+          {/* Progress Bar */}
+          <div className="mb-3">
+            <div className="flex justify-between text-sm mb-2">
+              <span className="text-cgp-text">Funding Progress</span>
+              <span className="font-bold text-cgp-gold">
+                {Math.min(100, Math.round((totalDeposited / FUNDING_TARGET) * 100))}%
+              </span>
+            </div>
+            <div className="w-full h-3 bg-cgp-dark rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-cgp-gold to-amber-400 rounded-full transition-all duration-500"
+                style={{ width: `${Math.min(100, (totalDeposited / FUNDING_TARGET) * 100)}%` }}
+              ></div>
+            </div>
+          </div>
+
+          {/* Funding Info */}
+          <div className="mt-4 bg-cgp-dark/50 rounded-lg p-4 space-y-2">
+            <div className="flex items-start gap-2 text-xs text-cgp-text">
+              <span className="text-cgp-gold mt-0.5">•</span>
+              <span>Funding can finish sooner than 9 months. Each day's confirmed deposits cannot exceed $1,000.</span>
+            </div>
+            <div className="flex items-start gap-2 text-xs text-cgp-text">
+              <span className="text-cgp-gold mt-0.5">•</span>
+              <span>60 days maturity period starts only after $40,000 is fully funded.</span>
+            </div>
+          </div>
+
+          {/* Stats Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mt-4">
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Deposited</p>
+              <p className="text-lg font-bold text-cgp-gold">
+                ${totalDeposited.toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Remaining</p>
+              <p className="text-lg font-bold text-white">
+                ${Math.max(0, FUNDING_TARGET - totalDeposited).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+              </p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Max Daily</p>
+              <p className="text-lg font-bold text-cgp-green">${MAX_DAILY.toLocaleString()}</p>
+            </div>
+            <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
+              <p className="text-xs text-cgp-text mb-1">Min Monthly</p>
+              <p className="text-lg font-bold text-cgp-blue">${MIN_MONTHLY.toLocaleString()}</p>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* My Investments */}
       {myInvestments.length > 0 && (
@@ -326,17 +423,11 @@ export default function Investments() {
                             style={{ width: `${inv.progress || 0}%` }}
                           ></div>
                         </div>
-                        <span className="text-xs text-cgp-text">
-                          {inv.progress || 0}%
-                        </span>
+                        <span className="text-xs text-cgp-text">{inv.progress || 0}%</span>
                       </div>
                     </td>
                     <td className="py-4">
-                      <span
-                        className={`text-xs px-2 py-1 rounded-full ${getStatusBadge(
-                          inv.status
-                        )}`}
-                      >
+                      <span className={`text-xs px-2 py-1 rounded-full ${getStatusBadge(inv.status)}`}>
                         {inv.status}
                       </span>
                     </td>
@@ -362,22 +453,16 @@ export default function Investments() {
               <X className="w-5 h-5" />
             </button>
 
-            <h2 className="text-xl font-bold mb-2">
-              Invest in {selectedPlan.name}
-            </h2>
+            <h2 className="text-xl font-bold mb-2">Invest in {selectedPlan.name}</h2>
             <p className="text-sm text-cgp-text mb-6">
               {selectedPlan.dailyRoi}% Daily ROI | {selectedPlan.durationDays} Days | Principal Return
             </p>
 
             <div className="space-y-4">
               <div>
-                <label className="block text-sm font-medium mb-2">
-                  Investment Amount (USD)
-                </label>
+                <label className="block text-sm font-medium mb-2">Investment Amount (USD)</label>
                 <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cgp-text">
-                    $
-                  </span>
+                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cgp-text">$</span>
                   <input
                     type="number"
                     value={amount}
@@ -397,31 +482,19 @@ export default function Investments() {
                 <div className="bg-cgp-dark rounded-xl p-4 space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-cgp-text">Daily Profit</span>
-                    <span className="text-cgp-green font-medium">
-                      +${preview.daily.toFixed(2)}
-                    </span>
+                    <span className="text-cgp-green font-medium">+${preview.daily.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-cgp-text">
-                      Total Profit ({selectedPlan.durationDays} days)
-                    </span>
-                    <span className="text-cgp-green font-medium">
-                      +${preview.totalProfit.toFixed(2)}
-                    </span>
+                    <span className="text-cgp-text">Total Profit ({selectedPlan.durationDays} days)</span>
+                    <span className="text-cgp-green font-medium">+${preview.totalProfit.toFixed(2)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-cgp-text">Principal Return</span>
-                    <span className="text-cgp-blue font-medium">
-                      +${parseFloat(amount).toFixed(2)}
-                    </span>
+                    <span className="text-cgp-blue font-medium">+${parseFloat(amount).toFixed(2)}</span>
                   </div>
                   <div className="border-t border-cgp-border pt-2 flex justify-between">
-                    <span className="text-cgp-text font-medium">
-                      Total Return
-                    </span>
-                    <span className="font-bold text-cgp-gold">
-                      ${preview.totalReturn.toFixed(2)}
-                    </span>
+                    <span className="text-cgp-text font-medium">Total Return</span>
+                    <span className="font-bold text-cgp-gold">${preview.totalReturn.toFixed(2)}</span>
                   </div>
                 </div>
               )}

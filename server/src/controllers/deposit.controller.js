@@ -18,18 +18,26 @@ const getUserAgent = (req) => {
 };
 
 /**
- * Get the start of "today" based on your reset time (midnight UTC or local).
+ * Get start of today in UTC (consistent for all users)
  */
-function getTodayStart() {
+function getTodayStartUTC() {
   const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+  return new Date(Date.UTC(
+    now.getUTCFullYear(),
+    now.getUTCMonth(),
+    now.getUTCDate(),
+    0, 0, 0, 0
+  ));
 }
 
 // ==================== VALIDATION ====================
 
 const createDepositValidation = [
-  body('amount').isFloat({ min: 50, max: 1000 }).withMessage('Deposit amount must be between $50 and $1,000'),
-  body('cryptoCurrency').isIn(['BTC', 'ETH', 'USDT-TRC20', 'USDT-ERC20', 'BNB', 'SOL']),
+  body('amount')
+    .isFloat({ min: 50, max: 1000 })
+    .withMessage('Deposit amount must be between $50 and $1,000'),
+  body('cryptoCurrency')
+    .isIn(['BTC', 'ETH', 'USDT-TRC20', 'USDT-ERC20', 'BNB', 'SOL']),
 ];
 
 // ==================== GET DEPOSIT ADDRESSES ====================
@@ -83,96 +91,112 @@ async function createDeposit(req, res, next) {
     const userId = req.user.id;
     const { amount, cryptoCurrency, fromAddress } = req.body;
     const depositAmount = parseFloat(amount);
-    const todayStart = getTodayStart();
+    const todayStart = getTodayStartUTC();
 
-    const todayDeposits = await prisma.deposit.aggregate({
-      where: {
-        userId,
-        status: { in: ['PENDING', 'CONFIRMING', 'COMPLETED'] },
-        createdAt: { gte: todayStart },
-      },
-      _sum: { amount: true },
-    });
-
-    const totalDepositedToday = todayDeposits._sum.amount || 0;
-    const newTotalToday = totalDepositedToday + depositAmount;
-
-    if (newTotalToday > 1000) {
-      const remaining = Math.max(0, 1000 - totalDepositedToday);
-      return res.status(400).json({
-        success: false,
-        message: remaining > 0
-          ? `Daily deposit limit is $1,000. You have deposited $${totalDepositedToday.toFixed(2)} today. You can only deposit up to $${remaining.toFixed(2)} more today.`
-          : 'You have reached the daily deposit limit of $1,000. Try again after midnight.',
+    // Use a transaction to prevent race conditions
+    const result = await prisma.$transaction(async (tx) => {
+      // Lock and get today's deposits sum
+      const todayDeposits = await tx.deposit.aggregate({
+        where: {
+          userId,
+          status: { in: ['PENDING', 'CONFIRMING', 'COMPLETED'] },
+          createdAt: { gte: todayStart },
+        },
+        _sum: { amount: true },
       });
-    }
 
-    const wallet = await prisma.wallet.findUnique({
-      where: { userId },
-    });
+      const totalDepositedToday = parseFloat(todayDeposits._sum.amount || 0);
+      const newTotalToday = totalDepositedToday + depositAmount;
 
-    const addressMap = {
-      BTC: wallet.btcAddress,
-      ETH: wallet.ethAddress,
-      'USDT-TRC20': wallet.usdtTrc20Address,
-      'USDT-ERC20': wallet.usdtErc20Address,
-      BNB: wallet.bnbAddress,
-      SOL: wallet.solAddress,
-    };
+      if (newTotalToday > 1000) {
+        const remaining = Math.max(0, 1000 - totalDepositedToday);
+        throw new Error(JSON.stringify({
+          status: 400,
+          message: remaining > 0
+            ? `Daily deposit limit is $1,000. You have deposited $${totalDepositedToday.toFixed(2)} today. You can only deposit up to $${remaining.toFixed(2)} more today.`
+            : 'You have reached the daily deposit limit of $1,000. Try again after midnight UTC.',
+        }));
+      }
 
-    const walletAddress = addressMap[cryptoCurrency];
+      const wallet = await tx.wallet.findUnique({
+        where: { userId },
+      });
 
-    const prices = {
-      BTC: 67432.21,
-      ETH: 3512.75,
-      'USDT-TRC20': 1.00,
-      'USDT-ERC20': 1.00,
-      BNB: 575.45,
-      SOL: 152.39,
-    };
+      const addressMap = {
+        BTC: wallet.btcAddress,
+        ETH: wallet.ethAddress,
+        'USDT-TRC20': wallet.usdtTrc20Address,
+        'USDT-ERC20': wallet.usdtErc20Address,
+        BNB: wallet.bnbAddress,
+        SOL: wallet.solAddress,
+      };
 
-    const cryptoAmount = depositAmount / prices[cryptoCurrency];
+      const walletAddress = addressMap[cryptoCurrency];
 
-    const deposit = await prisma.deposit.create({
-      data: {
-        userId,
-        amount: depositAmount,
-        cryptoAmount,
-        cryptoCurrency,
-        walletAddress,
-        fromAddress: fromAddress || null,
-        status: 'PENDING',
-      },
-    });
+      const prices = {
+        BTC: 67432.21,
+        ETH: 3512.75,
+        'USDT-TRC20': 1.00,
+        'USDT-ERC20': 1.00,
+        BNB: 575.45,
+        SOL: 152.39,
+      };
 
-    await prisma.transaction.create({
-      data: {
-        userId,
-        type: 'DEPOSIT',
-        status: 'PENDING',
-        amount: depositAmount,
-        currency: 'USD',
-        cryptoAmount,
-        cryptoCurrency,
-        depositId: deposit.id,
-        description: `Deposit of $${amount} via ${cryptoCurrency}`,
-      },
+      const cryptoAmount = depositAmount / prices[cryptoCurrency];
+
+      const deposit = await tx.deposit.create({
+        data: {
+          userId,
+          amount: depositAmount,
+          cryptoAmount,
+          cryptoCurrency,
+          walletAddress,
+          fromAddress: fromAddress || null,
+          status: 'PENDING',
+        },
+      });
+
+      await tx.transaction.create({
+        data: {
+          userId,
+          type: 'DEPOSIT',
+          status: 'PENDING',
+          amount: depositAmount,
+          currency: 'USD',
+          cryptoAmount,
+          cryptoCurrency,
+          depositId: deposit.id,
+          description: `Deposit of $${amount} via ${cryptoCurrency}`,
+        },
+      });
+
+      return deposit;
     });
 
     res.status(201).json({
       success: true,
       message: 'Deposit initiated',
       data: {
-        depositId: deposit.id,
-        amount: deposit.amount,
-        cryptoAmount: deposit.cryptoAmount,
-        cryptoCurrency: deposit.cryptoCurrency,
-        walletAddress: deposit.walletAddress,
-        status: deposit.status,
-        createdAt: deposit.createdAt,
+        depositId: result.id,
+        amount: result.amount,
+        cryptoAmount: result.cryptoAmount,
+        cryptoCurrency: result.cryptoCurrency,
+        walletAddress: result.walletAddress,
+        status: result.status,
+        createdAt: result.createdAt,
       },
     });
   } catch (error) {
+    // Handle custom error from transaction
+    try {
+      const errData = JSON.parse(error.message);
+      if (errData.status && errData.message) {
+        return res.status(errData.status).json({
+          success: false,
+          message: errData.message,
+        });
+      }
+    } catch {}
     next(error);
   }
 }

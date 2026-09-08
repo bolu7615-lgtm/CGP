@@ -15,6 +15,7 @@ import {
   Calendar,
   Target,
   Timer,
+  Lock,
 } from 'lucide-react'
 import api from '../lib/api'
 import toast from 'react-hot-toast'
@@ -82,6 +83,15 @@ export default function WalletPage() {
 
   const wallet = walletData?.wallet
 
+  // Funding stage: $4k+ deposited but Elite not fully funded / no active investment yet
+  const totalDeposited = parseFloat(wallet?.totalDeposited || 0)
+  const activeInvestments = walletData?.stats?.activeInvestments || 0
+  const isFundingStage =
+    totalDeposited >= 4000 && totalDeposited < FUNDING_TARGET && activeInvestments === 0
+
+  // Available reads 0 while in funding stage, real value once ROI starts dropping
+  const availableBalance = isFundingStage ? 0 : parseFloat(wallet?.availableBalance || 0)
+
   return (
     <div className="space-y-6 animate-fade-in">
       <div>
@@ -101,7 +111,7 @@ export default function WalletPage() {
           },
           {
             title: 'Available',
-            value: wallet?.availableBalance || 0,
+            value: availableBalance,
             icon: DollarSign,
             color: 'text-cgp-green',
             bg: 'bg-cgp-green/10',
@@ -127,8 +137,16 @@ export default function WalletPage() {
                 <card.icon className={`w-5 h-5 ${card.color}`} />
               </div>
             </div>
-            <p className="text-2xl font-bold">${parseFloat(card.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}</p>
+            <p className="text-2xl font-bold">
+              ${parseFloat(card.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}
+            </p>
             <p className="text-sm text-cgp-text mt-1">{card.title}</p>
+            {card.title === 'Available' && isFundingStage && (
+              <span className="inline-flex items-center gap-1 mt-2 text-[11px] px-2 py-0.5 rounded-full bg-cgp-gold/10 text-cgp-gold">
+                <Lock className="w-3 h-3" />
+                Locked in funding
+              </span>
+            )}
           </div>
         ))}
       </div>
@@ -295,6 +313,7 @@ export default function WalletPage() {
           </div>
         )}
       </div>
+
       {/* How Funding Works Modal */}
       {showFundingModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
