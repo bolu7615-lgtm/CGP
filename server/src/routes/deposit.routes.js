@@ -11,9 +11,9 @@ router.post('/', authenticate, depositController.createDepositValidation, deposi
 router.post('/:depositId/proof', authenticate, uploadDeposit.single('proof'), depositController.uploadDepositProof);
 router.get('/my', authenticate, depositController.getMyDeposits);
 
-// Admin routes — FIXED: changed :depositId to :id
-router.get('/all', requireAdmin, depositController.getAllDeposits);
-router.post('/:id/confirm', requireAdmin, depositController.confirmDeposit);
-router.post('/:id/reject', requireAdmin, depositController.rejectDeposit);
+// Admin routes — authenticate MUST run first: it sets req.user, which requireAdmin checks
+router.get('/all', authenticate, requireAdmin, depositController.getAllDeposits);
+router.post('/:id/confirm', authenticate, requireAdmin, depositController.confirmDeposit);
+router.post('/:id/reject', authenticate, requireAdmin, depositController.rejectDeposit);
 
 module.exports = router;

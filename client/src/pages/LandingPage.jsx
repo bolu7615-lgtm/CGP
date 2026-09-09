@@ -23,6 +23,7 @@ import {
   Landmark,
   Eye,
   Headphones,
+  Send,
 } from 'lucide-react'
 
 // ─── REAL SVG COIN ICONS ──────────────────────────────────────────
@@ -281,27 +282,35 @@ export default function LandingPage() {
   const faqs = [
     {
       q: 'What is the minimum investment amount?',
-      a: 'The Starter plan requires a minimum deposit of $4,000. Each plan has its own minimum and maximum limits. You must meet the minimum to activate a plan.',
+      a: 'Our Starter Plan begins at $4,000. We cater to serious investors looking for substantial returns. Plans range from $4,000 to $1,000,000 depending on the tier.',
     },
     {
       q: 'How are daily returns calculated?',
-      a: 'Returns are calculated as a fixed percentage of your principal investment. For example, a $10,000 investment in the Growth plan (1.8% daily) earns $180.00 every day for 60 days.',
+      a: 'Returns are calculated as a fixed daily percentage of your invested principal and credited to your balance each day. Returns begin once your chosen plan is fully funded.',
     },
     {
       q: 'When can I withdraw my earnings?',
-      a: 'You can withdraw your accumulated earnings at any time. Withdrawal requests are processed within 2-4 hours during business days. There is no minimum withdrawal amount.',
-    },
-    {
-      q: 'Is my principal returned at the end of the plan?',
-      a: 'Yes. Your original investment amount is returned in full at the end of the plan duration, provided you do not withdraw early. Early withdrawal carries a 20% fee.',
-    },
-    {
-      q: 'Which cryptocurrencies do you accept?',
-      a: 'We support Bitcoin (BTC), Ethereum (ETH), Tether (USDT on TRC20 and ERC20), Binance Coin (BNB), and Solana (SOL) for both deposits and withdrawals.',
+      a: 'Your funds stay locked in the plan until the term ends. After your investment matures, the full amount — principal plus profits — becomes available for withdrawal at any time.',
     },
     {
       q: 'What happens if I want to withdraw early?',
-      a: 'Early withdrawal is available but incurs a 20% fee on your principal. We recommend holding until maturity to receive your full principal back. Earnings are not affected by early withdrawal.',
+      a: 'Early withdrawal is not available. Withdrawals open only after the plan term completes. Once your investment matures, you can withdraw your full balance at any time.',
+    },
+    {
+      q: 'Which cryptocurrencies do you accept?',
+      a: 'We support Bitcoin (BTC), Ethereum (ETH), USDT (TRC20 & ERC20), BNB (BEP20), and Solana (SOL) for both deposits and withdrawals.',
+    },
+    {
+      q: 'How long do withdrawals take, and is there a fee?',
+      a: 'Withdrawals are processed within 24 hours after admin approval, and you will receive an email notification once processed. There is a 2% withdrawal fee and a minimum withdrawal amount of $100.',
+    },
+    {
+      q: 'How does the referral program work?',
+      a: 'Share your unique referral link with friends. You earn 5% on Level 1, 2% on Level 2, and 1% on Level 3 referrals\' investments. Bonuses are credited instantly.',
+    },
+    {
+      q: 'How secure is my investment?',
+      a: 'We use bank-level encryption, cold storage for crypto assets, 2FA authentication, and regular security audits. Your funds are protected by industry-leading security measures.',
     },
   ]
 
@@ -669,6 +678,22 @@ export default function LandingPage() {
           </div>
         </div>
       </section>
+
+      {/* Floating Telegram Support */}
+      <a
+        href="https://t.me/CGP_Support"
+        target="_blank"
+        rel="noopener noreferrer"
+        aria-label="Chat with support on Telegram"
+        className="fixed bottom-6 right-6 z-50 flex items-center gap-2.5 pl-4 pr-5 py-3 bg-[#F5A623] text-[#0a0e1a] rounded-full shadow-lg shadow-[#F5A623]/25 hover:bg-amber-500 hover:scale-105 transition-all"
+      >
+        <span className="relative flex w-2.5 h-2.5">
+          <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500 opacity-75 animate-ping" />
+          <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500" />
+        </span>
+        <Send className="w-5 h-5" />
+        <span className="text-sm font-semibold">Support</span>
+      </a>
     </div>
   )
 }

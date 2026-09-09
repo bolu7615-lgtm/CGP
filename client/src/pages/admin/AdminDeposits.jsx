@@ -12,8 +12,9 @@ import toast from 'react-hot-toast'
 export default function AdminDeposits() {
   const [deposits, setDeposits] = useState([])
   const [loading, setLoading] = useState(true)
-  const [filter, setFilter] = useState({ status: 'PENDING' })
+  const [filter, setFilter] = useState({ status: '' })
   const [selectedDeposit, setSelectedDeposit] = useState(null)
+  const [stats, setStats] = useState({ PENDING: 0, CONFIRMING: 0, COMPLETED: 0, REJECTED: 0, FAILED: 0 })
 
   useEffect(() => {
     fetchDeposits()
@@ -25,6 +26,7 @@ export default function AdminDeposits() {
       if (filter.status) params.append('status', filter.status)
       const res = await api.get(`/deposits/all?${params}`)
       setDeposits(res.data.data.deposits)
+      if (res.data.data.stats) setStats(res.data.data.stats)
     } catch (err) {
       toast.error('Failed to load deposits')
     } finally {
@@ -80,10 +82,10 @@ export default function AdminDeposits() {
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Pending', value: deposits.filter(d => d.status === 'PENDING').length, color: 'text-cgp-gold' },
-          { label: 'Confirming', value: deposits.filter(d => d.status === 'CONFIRMING').length, color: 'text-cgp-blue' },
-          { label: 'Completed', value: deposits.filter(d => d.status === 'COMPLETED').length, color: 'text-cgp-green' },
-          { label: 'Failed', value: deposits.filter(d => d.status === 'FAILED').length, color: 'text-cgp-red' },
+          { label: 'Pending', value: stats.PENDING || 0, color: 'text-cgp-gold' },
+          { label: 'Confirming', value: stats.CONFIRMING || 0, color: 'text-cgp-blue' },
+          { label: 'Completed', value: stats.COMPLETED || 0, color: 'text-cgp-green' },
+          { label: 'Rejected', value: stats.REJECTED || 0, color: 'text-cgp-red' },
         ].map((stat, i) => (
           <div key={i} className="bg-cgp-card border border-cgp-border rounded-xl p-4">
             <p className={`text-2xl font-bold ${stat.color}`}>{stat.value}</p>
@@ -152,7 +154,7 @@ export default function AdminDeposits() {
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      {deposit.status === 'PENDING' && (
+                      {(deposit.status === 'PENDING' || deposit.status === 'CONFIRMING') && (
                         <>
                           <button
                             onClick={() => confirmDeposit(deposit.id)}
@@ -243,7 +245,7 @@ export default function AdminDeposits() {
               )}
             </div>
 
-            {selectedDeposit.status === 'PENDING' && (
+            {(selectedDeposit.status === 'PENDING' || selectedDeposit.status === 'CONFIRMING') && (
               <div className="flex gap-3 mt-6">
                 <button
                   onClick={() => { confirmDeposit(selectedDeposit.id); setSelectedDeposit(null) }}
