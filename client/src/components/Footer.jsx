@@ -228,14 +228,7 @@ export default function Footer() {
           
           {/* Contact Info Row */}
           <div className="flex flex-wrap items-center justify-center gap-6 md:gap-10 mb-6 text-sm text-slate-400">
-            <a href="mailto:support@capitalgrowthprogram.com" className="flex items-center gap-2 hover:text-cgp-gold transition-colors">
-              <Mail className="w-4 h-4 text-cgp-gold" />
-              support@capitalgrowthprogram.com
-            </a>
-            <a href="tel:+15551234567" className="flex items-center gap-2 hover:text-cgp-gold transition-colors">
-              <Phone className="w-4 h-4 text-cgp-gold" />
-              +1 (555) 123-4567
-            </a>
+
             <span className="flex items-center gap-2">
               <MapPin className="w-4 h-4 text-cgp-gold" />
               New York, NY

@@ -70,15 +70,18 @@ export default function Withdraw() {
     return totalDeposited >= LOCK_THRESHOLD
   }
 
-  // Calculate available to withdraw (profit only when locked)
+  // Calculate available to withdraw (0 if less than $4k deposited, profit only when locked)
   const getAvailableToWithdraw = () => {
-    if (isFundsLocked()) {
-      // When locked, only profit can be withdrawn
-      const available = parseFloat(info?.availableBalance || 0)
-      const deposited = parseFloat(walletData?.wallet?.totalDeposited || 0)
-      return Math.max(0, available - deposited)
+    const totalDeposited = parseFloat(walletData?.wallet?.totalDeposited || 0)
+    
+    // If less than $4,000 deposited, available is 0
+    if (totalDeposited < LOCK_THRESHOLD) {
+      return 0
     }
-    return parseFloat(info?.availableBalance || 0)
+    
+    // When locked ($4k+), only profit can be withdrawn
+    const available = parseFloat(info?.availableBalance || 0)
+    return Math.max(0, available - totalDeposited)
   }
 
   // Calculate locked amount
@@ -247,7 +250,7 @@ export default function Withdraw() {
               </div>
               <div>
                 <p className="text-sm text-cgp-text">Available Balance</p>
-                <p className="text-2xl font-bold">${info?.availableBalance ? parseFloat(info.availableBalance).toLocaleString('en-US', { minimumFractionDigits: 2 }) : '0.00'}</p>
+                <p className="text-2xl font-bold">$0.00</p>
               </div>
             </div>
             <div className="text-right">

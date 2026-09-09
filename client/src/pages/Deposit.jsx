@@ -216,13 +216,6 @@ export default function Deposit() {
               </button>
             </div>
           </div>
-
-          <button
-            onClick={() => setStep(3)}
-            className="w-full mt-4 py-3 border border-cgp-border text-white font-semibold rounded-xl hover:bg-white/5 transition-colors"
-          >
-            I've Sent the BTC
-          </button>
         </div>
       )}
 

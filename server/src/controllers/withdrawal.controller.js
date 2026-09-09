@@ -3,6 +3,107 @@ const { body, validationResult } = require('express-validator');
 const { sendWithdrawalEmail } = require('../utils/email');
 const { generateWithdrawalId } = require('../utils/generateId');
 
+// ==================== CONSTANTS ====================
+
+const LOCK_THRESHOLD = 4000; // $4,000 minimum deposit to lock funds
+const TERM_DAYS = 60; // 60-day investment term
+
+// ==================== HELPER FUNCTIONS ====================
+
+/**
+ * Check if user's funds are locked (totalDeposited >= $4,000)
+ */
+async function isFundsLocked(userId) {
+  const wallet = await prisma.wallet.findUnique({
+    where: { userId },
+  });
+
+  if (!wallet) return false;
+
+  const totalDeposited = parseFloat(wallet.totalDeposited || 0);
+  return totalDeposited >= LOCK_THRESHOLD;
+}
+
+/**
+ * Get the first deposit date (term start date)
+ */
+async function getTermStartDate(userId) {
+  const firstDeposit = await prisma.deposit.findFirst({
+    where: {
+      userId,
+      status: 'COMPLETED',
+    },
+    orderBy: { createdAt: 'asc' },
+  });
+
+  return firstDeposit?.createdAt || null;
+}
+
+/**
+ * Check if the 60-day term has ended
+ */
+async function isTermEnded(userId) {
+  const termStartDate = await getTermStartDate(userId);
+
+  if (!termStartDate) {
+    // No deposits yet, term hasn't started
+    return false;
+  }
+
+  const termEndDate = new Date(termStartDate);
+  termEndDate.setDate(termEndDate.getDate() + TERM_DAYS);
+
+  return new Date() >= termEndDate;
+}
+
+/**
+ * Get days remaining in term
+ */
+async function getDaysRemaining(userId) {
+  const termStartDate = await getTermStartDate(userId);
+
+  if (!termStartDate) {
+    return TERM_DAYS;
+  }
+
+  const termEndDate = new Date(termStartDate);
+  termEndDate.setDate(termEndDate.getDate() + TERM_DAYS);
+
+  const now = new Date();
+  const diffTime = termEndDate - now;
+  const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+
+  return Math.max(0, diffDays);
+}
+
+/**
+ * Check if withdrawals are allowed for user
+ */
+async function canWithdraw(userId) {
+  const fundsLocked = await isFundsLocked(userId);
+  const termEnded = await isTermEnded(userId);
+
+  // If funds are locked (>= $4,000 deposited), withdrawals only allowed after term ends
+  if (fundsLocked) {
+    return {
+      allowed: termEnded,
+      reason: termEnded ? null : `Funds are locked. ${await getDaysRemaining(userId)} days remaining in your ${TERM_DAYS}-day term.`,
+      daysRemaining: await getDaysRemaining(userId),
+      termEnded,
+      fundsLocked,
+    };
+  }
+
+  // If funds are not locked (< $4,000), allow withdrawals
+  return {
+    allowed: true,
+    reason: null,
+    daysRemaining: 0,
+    termEnded: true,
+    fundsLocked: false,
+  };
+}
+
 // ==================== VALIDATION ====================
 
 const createWithdrawalValidation = [
@@ -29,13 +130,25 @@ async function getWithdrawalInfo(req, res, next) {
       where: { key: 'WITHDRAWAL_FEE' },
     });
 
+    // Check withdrawal lock status
+    const withdrawalStatus = await canWithdraw(req.user.id);
+
     res.json({
       success: true,
       data: {
-        availableBalance: wallet.availableBalance,
+        availableBalance: withdrawalStatus.allowed ? wallet.availableBalance : 0,
+        actualBalance: wallet.availableBalance,
         minimumWithdrawal: parseFloat(minSetting?.value || 100),
         feePercentage: parseFloat(feeSetting?.value || 2),
         supportedCurrencies: ['BTC', 'ETH', 'USDT-TRC20', 'USDT-ERC20', 'BNB', 'SOL'],
+        // Lock status fields
+        withdrawalsLocked: !withdrawalStatus.allowed,
+        lockReason: withdrawalStatus.reason,
+        daysRemaining: withdrawalStatus.daysRemaining,
+        termEnded: withdrawalStatus.termEnded,
+        fundsLocked: withdrawalStatus.fundsLocked,
+        termDays: TERM_DAYS,
+        lockThreshold: LOCK_THRESHOLD,
       },
     });
   } catch (error) {
@@ -69,6 +182,20 @@ async function createWithdrawal(req, res, next) {
       return res.status(403).json({
         success: false,
         message: 'KYC verification required before withdrawal',
+      });
+    }
+
+    // Check if withdrawals are allowed (60-day term check)
+    const withdrawalStatus = await canWithdraw(userId);
+    if (!withdrawalStatus.allowed) {
+      return res.status(403).json({
+        success: false,
+        message: withdrawalStatus.reason || 'Withdrawals are currently locked',
+        data: {
+          daysRemaining: withdrawalStatus.daysRemaining,
+          termEnded: withdrawalStatus.termEnded,
+          fundsLocked: withdrawalStatus.fundsLocked,
+        },
       });
     }
 
@@ -433,4 +560,9 @@ module.exports = {
   getAllWithdrawals,
   processWithdrawal,
   rejectWithdrawal,
+  // Export helpers for use in other controllers
+  canWithdraw,
+  isFundsLocked,
+  isTermEnded,
+  getDaysRemaining,
 };
