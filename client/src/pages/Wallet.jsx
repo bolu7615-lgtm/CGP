@@ -83,14 +83,22 @@ export default function WalletPage() {
 
   const wallet = walletData?.wallet
 
-  // Funding stage: $4k+ deposited but Elite not fully funded / no active investment yet
   const totalDeposited = parseFloat(wallet?.totalDeposited || 0)
+  const availableBalance = parseFloat(wallet?.availableBalance || 0)
   const activeInvestments = walletData?.stats?.activeInvestments || 0
-  const isFundingStage =
-    totalDeposited >= 4000 && totalDeposited < FUNDING_TARGET && activeInvestments === 0
 
-  // Locked balance shows availableBalance during funding stage, 0 otherwise
-  const lockedBalance = isFundingStage ? parseFloat(wallet?.availableBalance || 0) : 0
+  // Match Withdraw page: locked = everything deposited
+  const lockedBalance = totalDeposited
+
+  // Available to withdraw mirrors Withdraw.jsx logic (profit only once $4k+ deposited)
+  const availableToWithdraw =
+    totalDeposited < MIN_MONTHLY
+      ? 0
+      : Math.max(0, availableBalance - totalDeposited)
+
+  // Badge shown during funding stage ($4k+ deposited but Elite not fully funded / no active investment)
+  const isFundingStage =
+    totalDeposited >= MIN_MONTHLY && totalDeposited < FUNDING_TARGET && activeInvestments === 0
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -152,7 +160,7 @@ export default function WalletPage() {
       </div>
 
       {/* Elite Plan Funding Progress — shows only after $4k deposited */}
-      {wallet?.totalDeposited >= 4000 && (
+      {totalDeposited >= MIN_MONTHLY && (
         <div className="bg-cgp-card border border-cgp-gold/30 rounded-xl p-6 relative overflow-hidden">
           {/* Gold glow effect */}
           <div className="absolute top-0 right-0 w-32 h-32 bg-cgp-gold/5 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2"></div>
@@ -181,13 +189,13 @@ export default function WalletPage() {
             <div className="flex justify-between text-sm mb-2">
               <span className="text-cgp-text">Funding Progress</span>
               <span className="font-bold text-cgp-gold">
-                {Math.min(100, Math.round(((wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100))}%
+                {Math.min(100, Math.round((totalDeposited / FUNDING_TARGET) * 100))}%
               </span>
             </div>
             <div className="w-full h-3 bg-cgp-dark rounded-full overflow-hidden">
               <div
                 className="h-full bg-gradient-to-r from-cgp-gold to-amber-400 rounded-full transition-all duration-500"
-                style={{ width: `${Math.min(100, ((wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100)}%` }}
+                style={{ width: `${Math.min(100, (totalDeposited / FUNDING_TARGET) * 100)}%` }}
               ></div>
             </div>
           </div>
@@ -209,13 +217,13 @@ export default function WalletPage() {
             <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
               <p className="text-xs text-cgp-text mb-1">Deposited</p>
               <p className="text-lg font-bold text-cgp-gold">
-                ${parseFloat(wallet?.totalDeposited || 0).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                ${totalDeposited.toLocaleString('en-US', { minimumFractionDigits: 0 })}
               </p>
             </div>
             <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
               <p className="text-xs text-cgp-text mb-1">Remaining</p>
               <p className="text-lg font-bold text-white">
-                ${Math.max(0, FUNDING_TARGET - parseFloat(wallet?.totalDeposited || 0)).toLocaleString('en-US', { minimumFractionDigits: 0 })}
+                ${Math.max(0, FUNDING_TARGET - totalDeposited).toLocaleString('en-US', { minimumFractionDigits: 0 })}
               </p>
             </div>
             <div className="bg-cgp-dark/50 rounded-lg p-3 text-center">
@@ -363,7 +371,7 @@ export default function WalletPage() {
                   <div className="flex-1">
                     <h3 className="font-semibold text-sm text-cgp-gold">Current Progress</h3>
                     <p className="text-xs text-cgp-text mt-1">
-                      ${parseFloat(wallet?.totalDeposited || 0).toLocaleString()} of $40,000 ({Math.min(100, Math.round(((wallet?.totalDeposited || 0) / FUNDING_TARGET) * 100))}%). ${Math.max(0, FUNDING_TARGET - parseFloat(wallet?.totalDeposited || 0)).toLocaleString()} remaining.
+                      ${totalDeposited.toLocaleString()} of $40,000 ({Math.min(100, Math.round((totalDeposited / FUNDING_TARGET) * 100))}%). ${Math.max(0, FUNDING_TARGET - totalDeposited).toLocaleString()} remaining.
                     </p>
                   </div>
                 </div>
