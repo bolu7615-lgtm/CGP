@@ -59,7 +59,6 @@ async function sendEmail(to, subject, htmlContent, textContent = '') {
     console.log(`📧 Sending email to: ${to}`);
     console.log(`   Subject: ${subject}`);
     console.log(`   Sender: ${senderName} <${senderEmail}>`);
-    console.log(`   (Make sure '${senderEmail}' is verified in your Brevo dashboard)`);
 
     const response = await apiInstance.sendTransacEmail(sendSmtpEmail);
     console.log(`✅ Email sent to ${to}: ${subject}`);
@@ -89,7 +88,6 @@ async function sendTemplateEmail(to, templateName, variables = {}) {
 
     if (!template) {
       console.error(`❌ Email template not found in DB: ${templateName}`);
-      console.error(`   Make sure you have a template named '${templateName}' in your emailTemplate table.`);
       return { success: false, error: `Template '${templateName}' not found in database` };
     }
 
@@ -308,7 +306,7 @@ async function sendPlansLockedEmail(email, firstName, totalDeposited) {
     <p>You have <strong>9 months</strong> to fully fund the Elite Plan. Continue depositing to reach your $40,000 target!</p>
 
     <div style="text-align: center; margin-top: 30px;">
-      <a href="${process.env.CLIENT_URL || 'https://capitalgrowthprogram.com'}/investments" 
+      <a href="${process.env.CLIENT_URL || 'https://capitalgrowthprogram.com'}/investments"
          style="background: #F5A623; color: #0B0E14; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
         View Elite Plan
       </a>
@@ -328,6 +326,68 @@ async function sendPlansLockedEmail(email, firstName, totalDeposited) {
   );
 }
 
+/**
+ * ⭐ NEW: End-of-month deposit reminder
+ * Sent daily during the LAST 5 DAYS of the month when the user's
+ * monthly deposits are below the $4,000 target.
+ */
+async function sendMonthlyDepositReminderEmail(email, firstName, totalDepositedThisMonth, remaining, daysLeft, monthName) {
+  const remainingFormatted = parseFloat(remaining).toFixed(2);
+  const depositedFormatted = parseFloat(totalDepositedThisMonth).toFixed(2);
+  const progressPercent = Math.min(100, Math.round((totalDepositedThisMonth / 4000) * 100));
+  const daysLeftText = daysLeft === 0 ? 'today is the last day' : `${daysLeft} day${daysLeft === 1 ? '' : 's'} left`;
+
+  const html = `
+<!DOCTYPE html>
+<html>
+<body style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; background: #0B0E14; color: #fff;">
+  <div style="background: #0B0E14; padding: 30px; text-align: center; border-bottom: 2px solid #F5A623;">
+    <h1 style="color: #F5A623; margin: 0;">Capital Growth Program</h1>
+  </div>
+  <div style="padding: 30px;">
+    <h2 style="color: #F5A623; margin-top: 0;">⏰ Month-End Deposit Reminder</h2>
+    <p>Hi ${firstName},</p>
+    <p>This is a friendly reminder about your <strong style="color: #F5A623;">$4,000 monthly deposit target</strong> for <strong>${monthName}</strong>.</p>
+
+    <div style="background: #111827; border: 1px solid #1f2937; padding: 20px; border-radius: 12px; margin: 20px 0;">
+      <h3 style="color: #F5A623; margin-top: 0;">Your Progress</h3>
+      <p style="margin: 5px 0;"><strong>Deposited this month:</strong> $${depositedFormatted}</p>
+      <p style="margin: 5px 0;"><strong>Remaining to reach $4,000:</strong> <span style="color: #F5A623; font-weight: bold;">$${remainingFormatted}</span></p>
+      <p style="margin: 5px 0;"><strong>Time left in ${monthName}:</strong> ${daysLeftText}</p>
+
+      <!-- Progress bar -->
+      <div style="background: #1f2937; border-radius: 8px; height: 20px; margin-top: 15px; overflow: hidden;">
+        <div style="background: #F5A623; height: 100%; width: ${progressPercent}%; border-radius: 8px;"></div>
+      </div>
+      <p style="text-align: center; margin: 8px 0 0 0; font-size: 13px; color: #9ca3af;">${progressPercent}% of monthly target</p>
+    </div>
+
+    <p style="color: #fca5a5;">⚠️ <strong>Only ${daysLeftText}</strong> to complete your monthly deposit of $${remainingFormatted}. Don't miss out — consistent monthly deposits keep your account in good standing and unlock the Elite Plan at $4,000+ in total deposits.</p>
+
+    <div style="text-align: center; margin-top: 30px;">
+      <a href="${process.env.CLIENT_URL || 'https://capitalgrowthprogram.com'}/deposit"
+         style="background: #F5A623; color: #0B0E14; padding: 14px 28px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block;">
+        Make a Deposit Now
+      </a>
+    </div>
+  </div>
+  <div style="padding: 20px; text-align: center; border-top: 1px solid #1f2937; color: #6b7280; font-size: 12px;">
+    <p>Capital Growth Program &copy; 2026</p>
+    <p>You're receiving this because your monthly deposits are below the $4,000 target and the month is almost over.</p>
+  </div>
+</body>
+</html>`;
+
+  const textContent = `Hi ${firstName}, Month-End Deposit Reminder: You have deposited $${depositedFormatted} so far in ${monthName}. You still need $${remainingFormatted} to reach your $4,000 monthly deposit target. Only ${daysLeftText}. Make a deposit now: ${process.env.CLIENT_URL || 'https://capitalgrowthprogram.com'}/deposit`;
+
+  return await sendEmail(
+    email,
+    `⏰ Reminder: $${remainingFormatted} remaining to hit your $4,000 monthly deposit - ${daysLeftText} in ${monthName}`,
+    html,
+    textContent
+  );
+}
+
 module.exports = {
   sendEmail,
   sendTemplateEmail,
@@ -343,4 +403,5 @@ module.exports = {
   sendPasswordChangedEmail,
   sendSecurityAlertEmail,
   sendPlansLockedEmail,
+  sendMonthlyDepositReminderEmail,
 };

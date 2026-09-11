@@ -73,27 +73,26 @@ export default function Withdraw() {
   // Calculate available to withdraw (0 if less than $4k deposited, profit only when locked)
   const getAvailableToWithdraw = () => {
     const totalDeposited = parseFloat(walletData?.wallet?.totalDeposited || 0)
-    
+
     // If less than $4,000 deposited, available is 0
     if (totalDeposited < LOCK_THRESHOLD) {
       return 0
     }
-    
+
     // When locked ($4k+), only profit can be withdrawn
     const available = parseFloat(info?.availableBalance || 0)
     return Math.max(0, available - totalDeposited)
   }
 
-  // Calculate locked amount
+  // Locked amount: deposited funds are locked whether under or over $4k
   const getLockedAmount = () => {
-    if (!isFundsLocked()) return 0
     return parseFloat(walletData?.wallet?.totalDeposited || 0)
   }
 
   const handleSubmit = async () => {
     const minWithdrawal = info?.minimumWithdrawal || 100
     const availableToWithdraw = getAvailableToWithdraw()
-    
+
     if (!amount || parseFloat(amount) < minWithdrawal) {
       toast.error(`Minimum withdrawal is $${minWithdrawal}`)
       return
@@ -121,7 +120,7 @@ export default function Withdraw() {
         walletAddress,
         network: 'Bitcoin',
       })
-      
+
       const data = res.data.data?.withdrawal || res.data.data
       setWithdrawalData(data)
       setStep(2)
@@ -242,20 +241,40 @@ export default function Withdraw() {
       {/* NORMAL STATE - Show when totalDeposited < $4,000 */}
       {!fundsLocked && (
         <>
-          {/* Available Balance */}
-          <div className="bg-cgp-card border border-cgp-border rounded-xl p-6 flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 rounded-xl bg-orange-500/20 flex items-center justify-center">
-                <Bitcoin className="w-6 h-6 text-orange-400" />
+          {/* Available + Locked Balance Card */}
+          <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
+            <div className="space-y-4">
+              {/* Available to withdraw */}
+              <div className="flex items-center justify-between pb-4 border-b border-cgp-border">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-cgp-green/20 flex items-center justify-center">
+                    <Wallet className="w-6 h-6 text-cgp-green" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-cgp-text">Available to withdraw</p>
+                    <p className="text-2xl font-bold text-cgp-green">$0.00</p>
+                  </div>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs text-cgp-text">Min: ${info?.minimumWithdrawal || 100}</p>
+                  <p className="text-xs text-cgp-text">Fee: {info?.feePercentage || 2}%</p>
+                </div>
               </div>
-              <div>
-                <p className="text-sm text-cgp-text">Available Balance</p>
-                <p className="text-2xl font-bold">$0.00</p>
+
+              {/* Locked */}
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-cgp-gold/20 flex items-center justify-center">
+                    <Lock className="w-6 h-6 text-cgp-gold" />
+                  </div>
+                  <div>
+                    <p className="text-sm text-cgp-text">Locked</p>
+                    <p className="text-2xl font-bold text-cgp-gold">
+                      ${lockedAmount.toFixed(2)}
+                    </p>
+                  </div>
+                </div>
               </div>
-            </div>
-            <div className="text-right">
-              <p className="text-xs text-cgp-text">Min: ${info?.minimumWithdrawal || 100}</p>
-              <p className="text-xs text-cgp-text">Fee: {info?.feePercentage || 2}%</p>
             </div>
           </div>
 

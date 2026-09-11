@@ -1,6 +1,11 @@
+const cron = require('node-cron');
 const prisma = require('../config/database');
 const { body, validationResult } = require('express-validator');
-const { sendDepositEmail, sendPlansLockedEmail } = require('../utils/email');
+const {
+  sendDepositEmail,
+  sendPlansLockedEmail,
+  sendMonthlyDepositReminderEmail,
+} = require('../utils/email');
 const { generateDepositId } = require('../utils/generateId');
 
 // ==================== HELPERS ====================
@@ -511,6 +516,138 @@ async function rejectDeposit(req, res, next) {
   }
 }
 
+// ==================== ⭐ MONTHLY $4K DEPOSIT REMINDER CRON ====================
+
+const MONTHLY_DEPOSIT_TARGET = 4000;
+const REMINDER_DAYS_BEFORE_MONTH_END = 5; // start reminding when 5 days remain until month end
+
+// In-memory guard so a user never gets 2 reminders on the same day
+// (resets automatically each server restart — safe to duplicate occasionally)
+const remindersSentToday = new Set();
+
+/**
+ * Send daily reminder emails to users whose MONTHLY deposits
+ * are below $4,000. Runs only during the LAST 5 DAYS of the month.
+ *
+ * Example (September, 30 days): runs Sep 25, 26, 27, 28, 29, 30
+ * Example (February, 28 days):  runs Feb 23, 24, 25, 26, 27, 28
+ */
+async function sendMonthlyDepositReminders() {
+  try {
+    const now = new Date();
+    const day = now.getUTCDate();
+    const daysInMonth = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, 0)).getUTCDate();
+    const daysLeft = daysInMonth - day; // 0 = today is the last day of the month
+
+    // Only run when 5 days or fewer remain until month end
+    if (daysLeft > REMINDER_DAYS_BEFORE_MONTH_END) {
+      return;
+    }
+
+    const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1, 0, 0, 0, 0));
+    const monthName = now.toLocaleString('en-US', { month: 'long' });
+    const todayKey = `${now.getUTCFullYear()}-${now.getUTCMonth() + 1}-${day}`;
+
+    console.log(`📅 Running month-end deposit reminder check for ${monthName} (day ${day}/${daysInMonth}, ${daysLeft} day(s) left)...`);
+
+    // Sum COMPLETED deposits per user for this month
+    const monthlyDeposits = await prisma.deposit.groupBy({
+      by: ['userId'],
+      where: {
+        status: 'COMPLETED',
+        createdAt: { gte: monthStart },
+      },
+      _sum: { amount: true },
+    });
+
+    // Build a map: userId -> total deposited this month
+    const depositedMap = new Map();
+    monthlyDeposits.forEach((d) => {
+      depositedMap.set(d.userId, parseFloat(d._sum.amount || 0));
+    });
+
+    // Get all users (adjust the `where` filter to match your User model)
+    const users = await prisma.user.findMany({
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        // If your User model has a status field, uncomment:
+        // status: true,
+      },
+      // where: { status: 'ACTIVE' },
+    });
+
+    let sent = 0;
+    let skipped = 0;
+
+    for (const user of users) {
+      const totalThisMonth = depositedMap.get(user.id) || 0;
+
+      // Already hit the $4K monthly target — no reminder needed
+      if (totalThisMonth >= MONTHLY_DEPOSIT_TARGET) {
+        skipped++;
+        continue;
+      }
+
+      // Already reminded today — skip
+      if (remindersSentToday.has(`${user.id}-${todayKey}`)) {
+        skipped++;
+        continue;
+      }
+
+      const remaining = MONTHLY_DEPOSIT_TARGET - totalThisMonth;
+      const firstName = user.firstName || 'Investor';
+
+      const result = await sendMonthlyDepositReminderEmail(
+        user.email,
+        firstName,
+        totalThisMonth,
+        remaining,
+        daysLeft,
+        monthName
+      );
+
+      if (result.success) {
+        remindersSentToday.add(`${user.id}-${todayKey}`);
+        sent++;
+      }
+    }
+
+    // Prune old keys from the set to keep memory small
+    if (remindersSentToday.size > 5000) {
+      for (const key of remindersSentToday) {
+        if (!key.endsWith(todayKey)) remindersSentToday.delete(key);
+      }
+    }
+
+    console.log(`✅ Month-end deposit reminders complete: ${sent} sent, ${skipped} skipped (met target or already reminded).`);
+  } catch (error) {
+    console.error('❌ Month-end deposit reminder cron failed:', error.message);
+  }
+}
+
+/**
+ * Start the daily reminder cron job.
+ * CALL THIS ONCE from your server entry file (e.g. server.js / index.js):
+ *
+ *   const { startMonthlyDepositReminderCron } = require('./controllers/depositController');
+ *   startMonthlyDepositReminderCron();
+ */
+function startMonthlyDepositReminderCron() {
+  // Run every day at 08:00 UTC — the days-remaining check happens inside
+  cron.schedule('0 8 * * *', sendMonthlyDepositReminders, {
+    timezone: 'UTC',
+  });
+  console.log(`⏰ Month-end deposit reminder cron scheduled (daily at 08:00 UTC, active during last ${REMINDER_DAYS_BEFORE_MONTH_END} days of each month).`);
+}
+
+// Optional: manual trigger for testing via admin route or CLI
+async function triggerMonthlyDepositRemindersNow() {
+  console.log('⚡ Manual trigger: sending month-end deposit reminders now...');
+  await sendMonthlyDepositReminders();
+}
+
 module.exports = {
   createDepositValidation,
   getDepositAddresses,
@@ -520,4 +657,8 @@ module.exports = {
   getAllDeposits,
   confirmDeposit,
   rejectDeposit,
+  // ⭐ New exports
+  startMonthlyDepositReminderCron,
+  sendMonthlyDepositReminders,
+  triggerMonthlyDepositRemindersNow,
 };
