@@ -143,44 +143,44 @@ export default function Withdraw() {
         <p className="text-cgp-text">Withdraw your earnings via Bitcoin (BTC)</p>
       </div>
 
-      {/* LOCKED STATE - Show when totalDeposited >= $4,000 */}
-      {fundsLocked && step === 1 && (
-        <>
-          {/* Available vs Locked Card */}
-          <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
-            <div className="space-y-4">
-              {/* Available to withdraw */}
-              <div className="flex items-center justify-between pb-4 border-b border-cgp-border">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-cgp-green/20 flex items-center justify-center">
-                    <Wallet className="w-6 h-6 text-cgp-green" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-cgp-text">Available to withdraw</p>
-                    <p className="text-2xl font-bold text-cgp-green">
-                      ${availableToWithdraw.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
+      {/* Available vs Locked Card */}
+      <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
+        <div className="space-y-4">
+          {/* Available to withdraw */}
+          <div className="flex items-center justify-between pb-4 border-b border-cgp-border">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-cgp-green/20 flex items-center justify-center">
+                <Wallet className="w-6 h-6 text-cgp-green" />
               </div>
-
-              {/* Locked */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-cgp-gold/20 flex items-center justify-center">
-                    <Lock className="w-6 h-6 text-cgp-gold" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-cgp-text">Locked</p>
-                    <p className="text-2xl font-bold text-cgp-gold">
-                      ${lockedAmount.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
+              <div>
+                <p className="text-sm text-cgp-text">Available to withdraw</p>
+                <p className="text-2xl font-bold text-cgp-green">
+                  ${availableToWithdraw.toFixed(2)}
+                </p>
               </div>
             </div>
           </div>
 
+          {/* Locked */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="w-12 h-12 rounded-xl bg-cgp-gold/20 flex items-center justify-center">
+                <Lock className="w-6 h-6 text-cgp-gold" />
+              </div>
+              <div>
+                <p className="text-sm text-cgp-text">Locked</p>
+                <p className="text-2xl font-bold text-cgp-gold">
+                  ${lockedAmount.toFixed(2)}
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* LOCKED STATE - Show when totalDeposited >= $4,000 */}
+      {fundsLocked && step === 1 && (
+        <>
           {/* Funding Progress Card */}
           <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
             <div className="flex items-center justify-between mb-3">
@@ -238,146 +238,40 @@ export default function Withdraw() {
         </>
       )}
 
-      {/* NORMAL STATE - Show when totalDeposited < $4,000 */}
-      {!fundsLocked && (
-        <>
-          {/* Available + Locked Balance Card */}
-          <div className="bg-cgp-card border border-cgp-border rounded-xl p-6">
-            <div className="space-y-4">
-              {/* Available to withdraw */}
-              <div className="flex items-center justify-between pb-4 border-b border-cgp-border">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-cgp-green/20 flex items-center justify-center">
-                    <Wallet className="w-6 h-6 text-cgp-green" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-cgp-text">Available to withdraw</p>
-                    <p className="text-2xl font-bold text-cgp-green">$0.00</p>
-                  </div>
-                </div>
-                <div className="text-right">
-                  <p className="text-xs text-cgp-text">Min: ${info?.minimumWithdrawal || 100}</p>
-                  <p className="text-xs text-cgp-text">Fee: {info?.feePercentage || 2}%</p>
-                </div>
-              </div>
+      {/* NORMAL STATE - Show when totalDeposited < $4,000 (Same as screenshot) */}
+      {!fundsLocked && step === 1 && (
+        <div className="bg-cgp-card border border-cgp-border rounded-xl p-6 max-w-xl">
+          <button
+            disabled
+            className="w-full py-3.5 bg-cgp-dark text-cgp-text font-semibold rounded-xl cursor-not-allowed flex items-center justify-center gap-2"
+          >
+            <Lock className="w-5 h-5" />
+            Request Withdrawal
+          </button>
+          <p className="text-xs text-cgp-text text-center mt-3">
+            Funds stay locked until a plan is fully funded and the 60-day term ends.
+          </p>
+        </div>
+      )}
 
-              {/* Locked */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-cgp-gold/20 flex items-center justify-center">
-                    <Lock className="w-6 h-6 text-cgp-gold" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-cgp-text">Locked</p>
-                    <p className="text-2xl font-bold text-cgp-gold">
-                      ${lockedAmount.toFixed(2)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            </div>
+      {/* Success Screen */}
+      {step === 2 && (
+        <div className="bg-cgp-card border border-cgp-border rounded-xl p-8 max-w-md mx-auto text-center">
+          <div className="w-20 h-20 bg-cgp-green/20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle2 className="w-10 h-10 text-cgp-green" />
           </div>
+          <h2 className="text-2xl font-bold mb-3">Withdrawal Submitted!</h2>
+          <p className="text-cgp-text mb-8">
+            Your BTC withdrawal request is pending admin approval. You'll receive an email once processed.
+          </p>
 
-          {/* Withdrawal Form */}
-          {step === 1 ? (
-            <div className="bg-cgp-card border border-cgp-border rounded-xl p-6 max-w-xl">
-              <div className="space-y-5">
-                {/* BTC Badge */}
-                <div className="flex items-center gap-3 bg-cgp-dark rounded-xl p-4 border border-cgp-border">
-                  <div className="w-10 h-10 rounded-full bg-orange-500/20 flex items-center justify-center">
-                    <Bitcoin className="w-5 h-5 text-orange-400" />
-                  </div>
-                  <div>
-                    <p className="font-medium">Bitcoin (BTC)</p>
-                    <p className="text-xs text-cgp-text">Only BTC withdrawals supported</p>
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">Amount (USD)</label>
-                  <div className="relative">
-                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-cgp-text">$</span>
-                    <input
-                      type="number"
-                      value={amount}
-                      onChange={(e) => setAmount(e.target.value)}
-                      min={info?.minimumWithdrawal || 100}
-                      className="w-full pl-8 pr-4 py-3 bg-cgp-dark border border-cgp-border rounded-xl text-white placeholder-cgp-text focus:border-cgp-gold focus:ring-1 focus:ring-cgp-gold transition-colors"
-                      placeholder={`Minimum $${info?.minimumWithdrawal || 100}`}
-                    />
-                  </div>
-                  {amount && (
-                    <div className="mt-2 space-y-1 text-sm">
-                      <div className="flex justify-between text-cgp-text">
-                        <span>Fee ({info?.feePercentage || 2}%)</span>
-                        <span>${calculateFee().toFixed(2)}</span>
-                      </div>
-                      <div className="flex justify-between font-medium">
-                        <span>You'll Receive</span>
-                        <span className="text-cgp-green">${calculateNet().toFixed(2)}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium mb-2">BTC Wallet Address</label>
-                  <input
-                    type="text"
-                    value={walletAddress}
-                    onChange={(e) => setWalletAddress(e.target.value)}
-                    className="w-full px-4 py-3 bg-cgp-dark border border-cgp-border rounded-xl text-white placeholder-cgp-text focus:border-cgp-gold focus:ring-1 focus:ring-cgp-gold transition-colors"
-                    placeholder="Enter your Bitcoin (BTC) address"
-                  />
-                  <p className="text-xs text-cgp-text mt-1">Network: <strong>Bitcoin</strong></p>
-                </div>
-
-                <div className="bg-cgp-dark rounded-xl p-4 border border-cgp-border">
-                  <div className="flex items-start gap-3">
-                    <AlertCircle className="w-5 h-5 text-cgp-gold flex-shrink-0 mt-0.5" />
-                    <div className="text-sm text-cgp-text">
-                      <p className="text-white font-medium mb-1">Important:</p>
-                      <ul className="space-y-1 list-disc list-inside">
-                        <li>Double-check your <strong>BTC address</strong></li>
-                        <li>Use <strong>Bitcoin network only</strong></li>
-                        <li>Withdrawals are processed within 24 hours</li>
-                        <li>KYC verification required</li>
-                        <li>Wrong address = lost funds</li>
-                      </ul>
-                    </div>
-                  </div>
-                </div>
-
-                <button
-                  onClick={handleSubmit}
-                  disabled={loading || !amount || !walletAddress}
-                  className="w-full py-3.5 bg-cgp-gold text-cgp-dark font-semibold rounded-xl btn-gold disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                >
-                  <ArrowUpRight className="w-5 h-5" />
-                  {loading ? 'Processing...' : 'Request Withdrawal'}
-                </button>
-              </div>
-            </div>
-          ) : (
-            /* Success Screen - Simple without details */
-            <div className="bg-cgp-card border border-cgp-border rounded-xl p-8 max-w-md mx-auto text-center">
-              <div className="w-20 h-20 bg-cgp-green/20 rounded-full flex items-center justify-center mx-auto mb-6">
-                <CheckCircle2 className="w-10 h-10 text-cgp-green" />
-              </div>
-              <h2 className="text-2xl font-bold mb-3">Withdrawal Submitted!</h2>
-              <p className="text-cgp-text mb-8">
-                Your BTC withdrawal request is pending admin approval. You'll receive an email once processed.
-              </p>
-
-              <button
-                onClick={() => navigate('/wallet')}
-                className="w-full px-6 py-3.5 bg-cgp-gold text-cgp-dark font-semibold rounded-xl btn-gold"
-              >
-                Back to Wallet
-              </button>
-            </div>
-          )}
-        </>
+          <button
+            onClick={() => navigate('/wallet')}
+            className="w-full px-6 py-3.5 bg-cgp-gold text-cgp-dark font-semibold rounded-xl btn-gold"
+          >
+            Back to Wallet
+          </button>
+        </div>
       )}
     </div>
   )

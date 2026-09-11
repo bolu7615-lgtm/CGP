@@ -89,8 +89,8 @@ export default function WalletPage() {
   const isFundingStage =
     totalDeposited >= 4000 && totalDeposited < FUNDING_TARGET && activeInvestments === 0
 
-  // Available reads 0 while in funding stage, real value once ROI starts dropping
-  const availableBalance = isFundingStage ? 0 : parseFloat(wallet?.availableBalance || 0)
+  // Locked balance shows availableBalance during funding stage, 0 otherwise
+  const lockedBalance = isFundingStage ? parseFloat(wallet?.availableBalance || 0) : 0
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -110,11 +110,11 @@ export default function WalletPage() {
             bg: 'bg-cgp-gold/10',
           },
           {
-            title: 'Available',
-            value: availableBalance,
-            icon: DollarSign,
-            color: 'text-cgp-green',
-            bg: 'bg-cgp-green/10',
+            title: 'Locked Balance',
+            value: lockedBalance,
+            icon: Lock,
+            color: 'text-cgp-gold',
+            bg: 'bg-cgp-gold/10',
           },
           {
             title: 'Invested',
@@ -141,7 +141,7 @@ export default function WalletPage() {
               ${parseFloat(card.value).toLocaleString('en-US', { minimumFractionDigits: 2 })}
             </p>
             <p className="text-sm text-cgp-text mt-1">{card.title}</p>
-            {card.title === 'Available' && isFundingStage && (
+            {card.title === 'Locked Balance' && isFundingStage && (
               <span className="inline-flex items-center gap-1 mt-2 text-[11px] px-2 py-0.5 rounded-full bg-cgp-gold/10 text-cgp-gold">
                 <Lock className="w-3 h-3" />
                 Locked in funding
